@@ -78,7 +78,7 @@ This is the full post.
 `price_sats: 0` makes a post free.
 
 ## Deployment notes
-- Put this behind HTTPS (Caddy/Nginx). Then set cookie `secure: true` in `server.js`.
+- Put this behind HTTPS (Caddy/Nginx). Set `COOKIE_SECURE=true` so unlock cookies are `Secure`.
 - This MVP is intentionally tiny: no admin UI, no DB, no persistent invoice tracking.
 
 ## License

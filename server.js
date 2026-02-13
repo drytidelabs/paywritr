@@ -19,11 +19,13 @@ const LNBITS_READ_KEY = process.env.LNBITS_READ_KEY || '';
 
 const APP_SECRET = process.env.APP_SECRET || '';
 const UNLOCK_DAYS = Number(process.env.UNLOCK_DAYS || 30);
+const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true';
 
 if (!APP_SECRET) {
   console.warn('[payblog] WARNING: APP_SECRET is not set. Set it in production.');
 }
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cookieParser());
 app.use('/static', express.static(path.join(process.cwd(), 'static')));
@@ -312,7 +314,7 @@ app.get('/api/invoice/status', async (req, res) => {
     res.cookie(unlockCookieName(slug), token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // set true behind HTTPS
+      secure: COOKIE_SECURE,
       maxAge: UNLOCK_DAYS * 24 * 60 * 60 * 1000,
       path: '/',
     });
