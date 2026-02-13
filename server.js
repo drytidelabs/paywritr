@@ -21,23 +21,46 @@ const APP_SECRET = process.env.APP_SECRET || '';
 const UNLOCK_DAYS = Number(process.env.UNLOCK_DAYS || 30);
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true';
 
+const POSTS_DIR = path.join(process.cwd(), 'content', 'posts');
+const VALID_SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
 if (!APP_SECRET) {
   console.warn('[payblog] WARNING: APP_SECRET is not set. Set it in production.');
 }
+if (!Number.isFinite(UNLOCK_DAYS) || UNLOCK_DAYS <= 0) {
+  console.warn('[payblog] WARNING: UNLOCK_DAYS is invalid; defaulting to 30.');
+}
 
 app.set('trust proxy', 1);
-app.use(express.json());
+app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
-app.use('/static', express.static(path.join(process.cwd(), 'static')));
+app.use('/static', express.static(path.join(process.cwd(), 'static'), { fallthrough: false }));
 
-const POSTS_DIR = path.join(process.cwd(), 'content', 'posts');
+function asyncHandler(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
 
 function slugify(filename) {
   return filename.replace(/\.md$/, '');
 }
 
+function assertValidSlug(slug) {
+  if (!VALID_SLUG_RE.test(slug)) {
+    const err = new Error('invalid slug');
+    err.statusCode = 404;
+    throw err;
+  }
+}
+
 function hmac(data) {
   return crypto.createHmac('sha256', APP_SECRET || 'dev-secret').update(data).digest('hex');
+}
+
+function safeTimingEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  // hex strings => same length check avoids timingSafeEqual throwing.
+  return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
 }
 
 function signJSON(obj) {
@@ -51,7 +74,7 @@ function verifySignedJSON(token) {
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
   const expected = hmac(payload);
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  if (!safeTimingEqualHex(sig, expected)) return null;
   try {
     return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
   } catch {
@@ -73,14 +96,75 @@ function hasValidUnlock(req, slug) {
   return true;
 }
 
+function isBadUrlProtocol(url) {
+  try {
+    const u = new URL(url, 'http://example.com');
+    const proto = (u.protocol || '').toLowerCase();
+    return proto === 'javascript:' || proto === 'data:';
+  } catch {
+    // If parsing fails, err on the side of safety.
+    return true;
+  }
+}
+
+// Harden marked: drop raw HTML and disallow javascript:/data: in links/images.
+marked.use({
+  renderer: {
+    html() {
+      return '';
+    },
+  },
+  walkTokens(token) {
+    if (token?.type === 'link' && typeof token.href === 'string') {
+      if (isBadUrlProtocol(token.href)) token.href = '';
+    }
+    if (token?.type === 'image' && typeof token.href === 'string') {
+      if (isBadUrlProtocol(token.href)) token.href = '';
+    }
+  },
+});
+marked.setOptions({ mangle: false, headerIds: false });
+
+function renderMarkdown(md) {
+  return marked.parse(md || '');
+}
+
+function computeFallbackTeaser(md, maxChars = 800) {
+  const s = String(md || '').trim();
+  if (!s) return '';
+  if (s.length <= maxChars) return s;
+  return `${s.slice(0, maxChars).trim()}\n\n…`;
+}
+
 async function listPosts() {
-  const files = await fs.readdir(POSTS_DIR);
+  let files;
+  try {
+    files = await fs.readdir(POSTS_DIR);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return [];
+    throw e;
+  }
+
   const posts = [];
-  for (const f of files.filter(x => x.endsWith('.md'))) {
+  for (const f of files.filter((x) => x.endsWith('.md'))) {
     const slug = slugify(f);
+    if (!VALID_SLUG_RE.test(slug)) continue;
+
     const fullPath = path.join(POSTS_DIR, f);
-    const raw = await fs.readFile(fullPath, 'utf8');
-    const parsed = matter(raw);
+    let raw;
+    try {
+      raw = await fs.readFile(fullPath, 'utf8');
+    } catch {
+      continue;
+    }
+
+    let parsed;
+    try {
+      parsed = matter(raw);
+    } catch {
+      continue;
+    }
+
     const fm = parsed.data || {};
     posts.push({
       slug,
@@ -95,26 +179,44 @@ async function listPosts() {
 }
 
 async function loadPost(slug) {
+  assertValidSlug(slug);
   const fullPath = path.join(POSTS_DIR, `${slug}.md`);
+
   const raw = await fs.readFile(fullPath, 'utf8');
   const parsed = matter(raw);
   const fm = parsed.data || {};
   const body = parsed.content || '';
 
-  const [teaserMd, restMd] = body.split('<!--more-->');
-  const teaser = marked.parse(teaserMd || '');
-  const full = marked.parse(body);
+  const hasMoreSplit = body.includes('<!--more-->');
+  const [teaserMdRaw] = body.split('<!--more-->');
+
+  // IMPORTANT: for paid posts, if the author forgets <!--more-->,
+  // do NOT leak the entire post. Use a conservative fallback teaser.
+  const price_sats = Number(fm.price_sats || 0);
+  const teaserMd = price_sats > 0 && !hasMoreSplit ? computeFallbackTeaser(body) : (teaserMdRaw || '');
+
+  const teaserHtml = renderMarkdown(teaserMd);
+  const fullHtml = renderMarkdown(body);
 
   return {
     slug,
     title: fm.title || slug,
     date: fm.date || null,
-    price_sats: Number(fm.price_sats || 0),
+    price_sats,
     description: fm.description || '',
-    teaserHtml: teaser,
-    fullHtml: full,
-    hasMoreSplit: body.includes('<!--more-->'),
+    teaserHtml,
+    fullHtml,
+    hasMoreSplit,
   };
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function layout({ title, content, extraHead = '', extraBody = '' }) {
@@ -149,52 +251,52 @@ function layout({ title, content, extraHead = '', extraBody = '' }) {
 </html>`;
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-app.get('/', async (req, res) => {
-  const posts = await listPosts();
-  const items = posts.map(p => {
-    const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
-    return `<article class="post-card">
+app.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const posts = await listPosts();
+    const items = posts
+      .map((p) => {
+        const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
+        return `<article class="post-card">
       <h2><a href="/post/${encodeURIComponent(p.slug)}">${escapeHtml(p.title)}</a></h2>
       <div class="meta">${p.date ? escapeHtml(p.date) : ''}${p.date ? ' · ' : ''}${escapeHtml(price)}</div>
       ${p.description ? `<p class="desc">${escapeHtml(p.description)}</p>` : ''}
     </article>`;
-  }).join('\n');
+      })
+      .join('\n');
 
-  res.type('html').send(layout({
-    title: 'Home',
-    content: `
+    res.type('html').send(
+      layout({
+        title: 'Home',
+        content: `
       <section class="hero">
         <h1>${escapeHtml(SITE_TITLE)}</h1>
         <p class="muted">Minimal writing. Pay per post with Lightning.</p>
       </section>
-      <section class="post-list">${items}</section>
+      <section class="post-list">${items || '<p class="muted">No posts yet.</p>'}</section>
     `,
-  }));
-});
+      })
+    );
+  })
+);
 
-app.get('/post/:slug', async (req, res) => {
-  const slug = req.params.slug;
-  let post;
-  try {
-    post = await loadPost(slug);
-  } catch {
-    res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
-    return;
-  }
+app.get(
+  '/post/:slug',
+  asyncHandler(async (req, res) => {
+    const slug = req.params.slug;
+    let post;
+    try {
+      post = await loadPost(slug);
+    } catch {
+      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      return;
+    }
 
-  const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
-  const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
+    const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
+    const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
 
-  const paywall = post.price_sats > 0 && !unlocked ? `
+    const paywall = post.price_sats > 0 && !unlocked ? `
     <section class="paywall" id="paywall" data-slug="${escapeHtml(slug)}" data-price="${post.price_sats}">
       <div class="paywall-card">
         <div class="paywall-title">Unlock this post</div>
@@ -215,115 +317,160 @@ app.get('/post/:slug', async (req, res) => {
     </section>
   ` : '';
 
-  const html = `
+    const html = `
     <article class="post">
       <h1>${escapeHtml(post.title)}</h1>
       <div class="meta">${post.date ? escapeHtml(post.date) : ''}${post.date ? ' · ' : ''}${escapeHtml(priceLine)}</div>
       <section class="content">
-        ${unlocked ? post.fullHtml : (post.hasMoreSplit ? post.teaserHtml : post.teaserHtml)}
+        ${unlocked ? post.fullHtml : post.teaserHtml}
       </section>
       ${paywall}
     </article>
   `;
 
-  res.type('html').send(layout({
-    title: post.title,
-    content: html,
-    extraBody: `<script src="/static/qrcode.min.js"></script><script src="/static/pay.js"></script>`,
-  }));
-});
+    res.type('html').send(
+      layout({
+        title: post.title,
+        content: html,
+        extraBody: `<script src="/static/qrcode.min.js"></script><script src="/static/pay.js"></script>`,
+      })
+    );
+  })
+);
 
-app.get('/api/invoice', async (req, res) => {
-  const slug = String(req.query.slug || '');
-  if (!slug) return res.status(400).json({ error: 'missing slug' });
+app.get(
+  '/api/invoice',
+  asyncHandler(async (req, res) => {
+    const slug = String(req.query.slug || '');
+    if (!slug) return res.status(400).json({ error: 'missing slug' });
 
-  let post;
-  try {
-    post = await loadPost(slug);
-  } catch {
-    return res.status(404).json({ error: 'unknown post' });
-  }
+    let post;
+    try {
+      post = await loadPost(slug);
+    } catch {
+      return res.status(404).json({ error: 'unknown post' });
+    }
 
-  if (post.price_sats <= 0) return res.status(400).json({ error: 'post is free' });
-  if (!LNBITS_URL || !LNBITS_INVOICE_KEY || !LNBITS_READ_KEY) {
-    return res.status(500).json({ error: 'LNbits is not configured' });
-  }
+    if (post.price_sats <= 0) return res.status(400).json({ error: 'post is free' });
+    if (!LNBITS_URL || !LNBITS_INVOICE_KEY || !LNBITS_READ_KEY) {
+      return res.status(500).json({ error: 'LNbits is not configured' });
+    }
 
-  const amount = post.price_sats;
-  const memo = `${SITE_TITLE}: ${post.title} (${slug})`;
+    const amount = post.price_sats;
+    const memo = `${SITE_TITLE}: ${post.title} (${slug})`;
 
-  const r = await fetch(`${LNBITS_URL}/api/v1/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Api-Key': LNBITS_INVOICE_KEY,
-    },
-    body: JSON.stringify({ out: false, amount, memo, unit: 'sat' }),
-  });
+    let r;
+    try {
+      r = await fetch(`${LNBITS_URL}/api/v1/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': LNBITS_INVOICE_KEY,
+        },
+        body: JSON.stringify({ out: false, amount, memo, unit: 'sat' }),
+      });
+    } catch (e) {
+      return res.status(502).json({ error: 'failed to create invoice', detail: String(e?.message || e) });
+    }
 
-  if (!r.ok) {
-    const text = await r.text();
-    return res.status(502).json({ error: 'failed to create invoice', detail: text });
-  }
+    if (!r.ok) {
+      const text = await r.text();
+      return res.status(502).json({ error: 'failed to create invoice', detail: text });
+    }
 
-  const data = await r.json();
-  // LNbits returns: payment_hash, payment_request, checking_id
-  const payment_hash = data.payment_hash;
-  const payment_request = data.payment_request;
+    const data = await r.json();
+    // LNbits returns: payment_hash, payment_request, checking_id
+    const payment_hash = data.payment_hash;
+    const payment_request = data.payment_request;
 
-  const state = signJSON({ slug, amount, payment_hash, iat: Date.now() });
+    // short-lived state token to prevent stale polling & reduce replay window
+    const stateExpMs = Date.now() + 15 * 60 * 1000;
+    const state = signJSON({ slug, amount, payment_hash, iat: Date.now(), exp: stateExpMs });
 
-  res.json({
-    slug,
-    amount,
-    payment_hash,
-    payment_request,
-    state,
-    pay_url: `${BASE_URL}/post/${encodeURIComponent(slug)}`,
-  });
-});
-
-app.get('/api/invoice/status', async (req, res) => {
-  const payment_hash = String(req.query.payment_hash || '');
-  const state = String(req.query.state || '');
-  if (!payment_hash || !state) return res.status(400).json({ error: 'missing params' });
-
-  if (!LNBITS_URL || !LNBITS_READ_KEY) {
-    return res.status(500).json({ error: 'LNbits is not configured' });
-  }
-
-  const stateData = verifySignedJSON(state);
-  if (!stateData) return res.status(400).json({ error: 'bad state' });
-  if (stateData.payment_hash !== payment_hash) return res.status(400).json({ error: 'state mismatch' });
-
-  const r = await fetch(`${LNBITS_URL}/api/v1/payments/${encodeURIComponent(payment_hash)}`, {
-    headers: { 'X-Api-Key': LNBITS_READ_KEY },
-  });
-  if (!r.ok) {
-    const text = await r.text();
-    return res.status(502).json({ error: 'failed to check payment', detail: text });
-  }
-
-  const data = await r.json();
-  const paid = Boolean(data.paid);
-
-  if (paid) {
-    const slug = stateData.slug;
-    const exp = Date.now() + UNLOCK_DAYS * 24 * 60 * 60 * 1000;
-    const token = signJSON({ slug, exp });
-    res.cookie(unlockCookieName(slug), token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: COOKIE_SECURE,
-      maxAge: UNLOCK_DAYS * 24 * 60 * 60 * 1000,
-      path: '/',
+    res.json({
+      slug,
+      amount,
+      payment_hash,
+      payment_request,
+      state,
+      pay_url: `${BASE_URL}/post/${encodeURIComponent(slug)}`,
     });
-  }
+  })
+);
 
-  res.json({ paid });
-});
+app.get(
+  '/api/invoice/status',
+  asyncHandler(async (req, res) => {
+    const payment_hash = String(req.query.payment_hash || '');
+    const state = String(req.query.state || '');
+    if (!payment_hash || !state) return res.status(400).json({ error: 'missing params' });
+
+    if (!LNBITS_URL || !LNBITS_READ_KEY) {
+      return res.status(500).json({ error: 'LNbits is not configured' });
+    }
+
+    const stateData = verifySignedJSON(state);
+    if (!stateData) return res.status(400).json({ error: 'bad state' });
+    if (stateData.exp && Date.now() > stateData.exp) return res.status(400).json({ error: 'state expired' });
+    if (stateData.payment_hash !== payment_hash) return res.status(400).json({ error: 'state mismatch' });
+
+    let r;
+    try {
+      r = await fetch(`${LNBITS_URL}/api/v1/payments/${encodeURIComponent(payment_hash)}`, {
+        headers: { 'X-Api-Key': LNBITS_READ_KEY },
+      });
+    } catch (e) {
+      return res.status(502).json({ error: 'failed to check payment', detail: String(e?.message || e) });
+    }
+
+    if (!r.ok) {
+      const text = await r.text();
+      return res.status(502).json({ error: 'failed to check payment', detail: text });
+    }
+
+    const data = await r.json();
+    const paid = Boolean(data.paid);
+
+    if (paid) {
+      const slug = stateData.slug;
+      // ensure slug in state is valid & corresponds to a real post
+      try {
+        await loadPost(slug);
+      } catch {
+        return res.status(400).json({ error: 'unknown post for state' });
+      }
+
+      const days = Number.isFinite(UNLOCK_DAYS) && UNLOCK_DAYS > 0 ? UNLOCK_DAYS : 30;
+      const exp = Date.now() + days * 24 * 60 * 60 * 1000;
+      const token = signJSON({ slug, exp });
+      res.cookie(unlockCookieName(slug), token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: COOKIE_SECURE,
+        maxAge: days * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    res.json({ paid });
+  })
+);
 
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
+// Basic error handler to avoid unhandled promise rejections leaking stack traces.
+// (Express 5 will route async errors here.)
+app.use((err, req, res, next) => {
+  const status = Number(err?.statusCode || err?.status || 500);
+  const msg = status >= 500 ? 'internal error' : String(err?.message || 'error');
+
+  if (req.path.startsWith('/api/')) {
+    res.status(status).json({ error: msg });
+    return;
+  }
+
+  res.status(status).type('html').send(layout({ title: 'Error', content: `<h1>${escapeHtml(msg)}</h1>` }));
+});
 
 app.listen(PORT, () => {
   console.log(`[payblog] listening on ${BASE_URL}`);
