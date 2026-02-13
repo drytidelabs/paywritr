@@ -1,0 +1,23 @@
+{
+  "name": "payblog",
+  "version": "0.1.0",
+  "description": "Hyper-minimalist single-author flat-file blog with per-post Lightning paygating (LNbits).",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "gray-matter": "^4.0.3",
+    "marked": "^17.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

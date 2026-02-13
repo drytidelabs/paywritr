@@ -1,0 +1,14 @@
+services:
+  payblog:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - BASE_URL=http://localhost:3000
+      - SITE_TITLE=PayBlog
+      - APP_SECRET=${APP_SECRET}
+      - UNLOCK_DAYS=30
+      - LNBITS_URL=${LNBITS_URL}
+      - LNBITS_INVOICE_KEY=${LNBITS_INVOICE_KEY}
+      - LNBITS_READ_KEY=${LNBITS_READ_KEY}
