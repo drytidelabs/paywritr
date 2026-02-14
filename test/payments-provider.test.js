@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { parsePaymentsProvider, msatsFromSats } from '../lib/payments.js';
 
-test('parsePaymentsProvider defaults to lnbits', () => {
-  assert.equal(parsePaymentsProvider({}), 'lnbits');
-  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: '' }), 'lnbits');
+test('parsePaymentsProvider defaults to alby_hub', () => {
+  assert.equal(parsePaymentsProvider({}), 'alby_hub');
+  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: '' }), 'alby_hub');
 });
 
 test('parsePaymentsProvider supports lnbits', () => {
