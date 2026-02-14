@@ -29,6 +29,8 @@ In LNbits you’ll need two API keys:
 ### Option B: Alby Nostr Wallet Connect (NWC)
 This uses an Alby wallet connection string so your server does not need to run or trust an LNbits instance.
 
+Important: NWC (NIP-47) `make_invoice.amount` is **millisatoshis (msats)**, not sats (1 sat = 1000 msats). Paywritr handles this conversion internally.
+
 Set:
 - `PAYMENTS_PROVIDER=alby_nwc`
 - `ALBY_NWC_URL=nostr+walletconnect://...`
