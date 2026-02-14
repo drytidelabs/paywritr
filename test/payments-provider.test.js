@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parsePaymentsProvider, nwcMsatsFromSats } from '../lib/payments.js';
+import { parsePaymentsProvider, msatsFromSats } from '../lib/payments.js';
 
 test('parsePaymentsProvider defaults to lnbits', () => {
   assert.equal(parsePaymentsProvider({}), 'lnbits');
@@ -13,18 +13,20 @@ test('parsePaymentsProvider supports lnbits', () => {
   assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'LNBITS' }), 'lnbits');
 });
 
-test('parsePaymentsProvider supports alby_nwc aliases', () => {
-  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'alby_nwc' }), 'alby_nwc');
-  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'alby-nwc' }), 'alby_nwc');
-  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'nwc' }), 'alby_nwc');
+test('parsePaymentsProvider supports alby_hub', () => {
+  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'alby_hub' }), 'alby_hub');
+  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'ALBY_HUB' }), 'alby_hub');
 });
 
 test('parsePaymentsProvider falls back to lnbits on unknown', () => {
   assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'something-else' }), 'lnbits');
 });
 
-test('NWC amounts are millisats (msats)', () => {
+test('Alby Hub amounts are millisats (msats)', () => {
   // NIP-47 uses millisatoshis: 1 sat = 1000 msats.
-  assert.equal(nwcMsatsFromSats(50), 50_000);
-  assert.equal(nwcMsatsFromSats('50'), 50_000);
+  assert.equal(msatsFromSats(50), 50_000);
+  assert.equal(msatsFromSats('50'), 50_000);
+  // Ensure integer msats even if caller passes a float.
+  assert.equal(msatsFromSats(1.2345), 1234);
+  assert.ok(Number.isNaN(msatsFromSats('nope')));
 });

@@ -13,15 +13,14 @@ services:
       - SITE_TITLE=Paywritr
       - UNLOCK_DAYS=30
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
-      # Payments provider switch:
-      #   lnbits (default) or alby_nwc
+      # Payments provider switch: lnbits (default) or alby_hub
       - PAYMENTS_PROVIDER=${PAYMENTS_PROVIDER:-lnbits}
       # LNbits provider
       - LNBITS_URL=${LNBITS_URL}
       - LNBITS_INVOICE_KEY=${LNBITS_INVOICE_KEY}
       - LNBITS_READ_KEY=${LNBITS_READ_KEY}
-      # Alby NWC provider
-      - ALBY_NWC_URL=${ALBY_NWC_URL}
+      # Alby Hub provider
+      - ALBY_HUB_URL=${ALBY_HUB_URL}
     volumes:
       # Optional: edit posts without rebuilding the container.
       - ./content:/app/content:ro
