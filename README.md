@@ -1,4 +1,4 @@
-# PayBlog
+# Paywritr
 
 Hyper-minimalist single-author flat-file blog with per-post Lightning paygating.
 

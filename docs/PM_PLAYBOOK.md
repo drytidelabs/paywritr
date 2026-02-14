@@ -1,6 +1,6 @@
 # PM Playbook (Lightweight) — GitHub Issues + Projects v2
 
-> **Purpose:** a repeatable, low-overhead system to organize any DRYTIDE LABS repo (PayBlog first) so we always have: (1) clear hierarchy (epics → tasks → sub-issues), (2) one source of truth board (Projects v2), and (3) consistent ordering (Priority + Iteration + Status).
+> **Purpose:** a repeatable, low-overhead system to organize any DRYTIDE LABS repo (Paywritr first) so we always have: (1) clear hierarchy (epics → tasks → sub-issues), (2) one source of truth board (Projects v2), and (3) consistent ordering (Priority + Iteration + Status).
 
 ## Principles (opinionated)
 - **One board, many views.** The Project is the truth; Issues are the atoms.

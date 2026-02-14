@@ -1,13 +1,13 @@
-# PayBlog — Discovery Brief (v0.1 → v0.2)
+# Paywritr — Discovery Brief (v0.1 → v0.2)
 
-**Context / constraints:** PayBlog is a self-hosted, single-author, flat-file Markdown blog with per-post Lightning paygating via **LNbits**. No user accounts, no DB.
+**Context / constraints:** Paywritr is a self-hosted, single-author, flat-file Markdown blog with per-post Lightning paygating via **LNbits**. No user accounts, no DB.
 
 ---
 
 ## 1) Product definition + target user hypotheses
 
 **Product definition (1 paragraph):**
-PayBlog is a minimal, self-hosted publishing tool for individual creators who want to monetize specific posts with **one-time Lightning payments**—without subscriptions, accounts, or a database. Posts live as Markdown files on disk; each post can be free or paygated, and readers unlock individual posts by paying a Lightning invoice (LNbits), receiving a time-limited unlock cookie. The product’s promise is *frictionless, pay-per-article monetization* with a simple deployment footprint.
+Paywritr is a minimal, self-hosted publishing tool for individual creators who want to monetize specific posts with **one-time Lightning payments**—without subscriptions, accounts, or a database. Posts live as Markdown files on disk; each post can be free or paygated, and readers unlock individual posts by paying a Lightning invoice (LNbits), receiving a time-limited unlock cookie. The product’s promise is *frictionless, pay-per-article monetization* with a simple deployment footprint.
 
 **Target user hypotheses (3–5 archetypes):**
 1. **Bitcoin/Lightning-native writer** — already has a Lightning wallet, wants to sell essays/tutorials to a LN audience, dislikes platform fees/censorship risk.
@@ -18,7 +18,7 @@ PayBlog is a minimal, self-hosted publishing tool for individual creators who wa
 
 ---
 
-## 2) Problem hypotheses (top 5) + why PayBlog is uniquely suited
+## 2) Problem hypotheses (top 5) + why Paywritr is uniquely suited
 
 **Top problem hypotheses (what blocks adoption/value):**
 1. **Monetization mismatch:** subscriptions feel heavy; creators want *pay-per-piece* pricing (especially for sporadic premium content).
@@ -27,7 +27,7 @@ PayBlog is a minimal, self-hosted publishing tool for individual creators who wa
 4. **Linkability & distribution:** creators need paygated links that work well on X/Telegram/newsletters while still teasing value.
 5. **Post-purchase experience:** creators need simple “what was bought / what’s unlocked” behavior without user profiles.
 
-**Why PayBlog is uniquely suited (Lightning pay-per-post):**
+**Why Paywritr is uniquely suited (Lightning pay-per-post):**
 - **Lightning enables true micropayments** (tens to thousands of sats) where credit cards/subscription rails are inefficient.
 - **No accounts** aligns with Lightning’s “pay once, access once” model; we can use signed unlock cookies per-post.
 - **Flat-file Markdown** keeps creator workflow fast (git-backed writing, simple backups, portable content).
@@ -43,7 +43,7 @@ PayBlog is a minimal, self-hosted publishing tool for individual creators who wa
 - **Creator monetization:** Patreon/Ko-fi/Gumroad (often account-centric; not per-post native; fees; less “blog-native”).
 - **Bitcoin/Lightning publishing:** niche paywall tools, tip jars, LNURL-pay gated content (varies; often lacks “blog as code” simplicity).
 
-**PayBlog differentiation (hypothesis):**
+**Paywritr differentiation (hypothesis):**
 - **Pay-per-post first** (not a membership system bolted on).
 - **Extremely low operational complexity** (no DB, no accounts, simple Node/Express deploy).
 - **Portable content + ownership** (Markdown on disk, easy git workflow).
@@ -135,7 +135,7 @@ Scoring: **Impact (1–10)** × **Confidence (1–10)** × **Ease (1–10)**. Hi
 6. **Content leakage/piracy**
    - De-risk: accept as reality; focus on convenience and pricing; add soft deterrents (watermark/receipt ID) only if requested.
 7. **Legal/tax expectations around selling content**
-   - De-risk: add a lightweight disclaimer template; keep PayBlog as software; encourage creators to handle compliance.
+   - De-risk: add a lightweight disclaimer template; keep Paywritr as software; encourage creators to handle compliance.
 8. **SEO + paywall discoverability**
    - De-risk: ensure teasers are indexable; add structured metadata; consider “free index, paid detail” pattern.
 
@@ -143,7 +143,7 @@ Scoring: **Impact (1–10)** × **Confidence (1–10)** × **Ease (1–10)**. Hi
 
 ## Recommended next 3 engineering tasks (map to GitHub issues)
 
-> No existing PayBlog GitHub issues were found in-repo; recommended to create issues with the titles below.
+> No existing Paywritr GitHub issues were found in-repo; recommended to create issues with the titles below.
 
 1. **Issue: Improve paywall conversion UX (QR/copy, states, retries)**
    - Scope: clearer CTA, invoice creation loading state, error handling, “payment detected” transition, better mobile layout.

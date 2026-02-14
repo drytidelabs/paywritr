@@ -1,7 +1,7 @@
 {
-  "name": "payblog",
+  "name": "paywritr",
   "version": "0.1.0",
-  "description": "Hyper-minimalist single-author flat-file blog with per-post Lightning paygating (LNbits).",
+  "description": "Hyper-minimalist single-author flat-file blog with per-post Lightning paygating.",
   "type": "module",
   "main": "server.js",
   "scripts": {
