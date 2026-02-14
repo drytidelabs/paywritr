@@ -2,8 +2,8 @@
 
 Paywritr supports two payments backends:
 
-- **LNbits** (default)
-- **Alby Hub** (`PAYMENTS_PROVIDER=alby_hub`)
+- **Alby Hub** (default) — `PAYMENTS_PROVIDER=alby_hub`, `ALBY_HUB_URL=nostr+walletconnect://...`
+- **LNbits** (optional) — `PAYMENTS_PROVIDER=lnbits`, plus LNbits keys
 
 ## Units: sats vs msats (important)
 
