@@ -6,11 +6,15 @@ import cookieParser from 'cookie-parser';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 
+import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 const SITE_TITLE = process.env.SITE_TITLE || 'PayBlog';
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+
+const PAYMENTS_PROVIDER = parsePaymentsProvider(process.env);
 
 // LNbits config
 const LNBITS_URL = (process.env.LNBITS_URL || '').replace(/\/$/, '');
@@ -352,40 +356,25 @@ app.get(
     }
 
     if (post.price_sats <= 0) return res.status(400).json({ error: 'post is free' });
-    if (!LNBITS_URL || !LNBITS_INVOICE_KEY || !LNBITS_READ_KEY) {
-      return res.status(500).json({ error: 'LNbits is not configured' });
-    }
 
     const amount = post.price_sats;
     const memo = `${SITE_TITLE}: ${post.title} (${slug})`;
 
-    let r;
+    let inv;
     try {
-      r = await fetch(`${LNBITS_URL}/api/v1/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Api-Key': LNBITS_INVOICE_KEY,
-        },
-        body: JSON.stringify({ out: false, amount, memo, unit: 'sat' }),
-      });
+      inv = await createInvoice({ provider: PAYMENTS_PROVIDER, amountSats: amount, memo, slug });
     } catch (e) {
-      return res.status(502).json({ error: 'failed to create invoice', detail: String(e?.message || e) });
+      const status = Number(e?.statusCode || 502);
+      const detail = status >= 500 ? String(e?.detail || e?.message || 'error') : undefined;
+      return res.status(status).json({ error: String(e?.message || 'failed to create invoice'), detail });
     }
 
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(502).json({ error: 'failed to create invoice', detail: text });
-    }
-
-    const data = await r.json();
-    // LNbits returns: payment_hash, payment_request, checking_id
-    const payment_hash = data.payment_hash;
-    const payment_request = data.payment_request;
+    const payment_hash = inv.payment_hash;
+    const payment_request = inv.payment_request;
 
     // short-lived state token to prevent stale polling & reduce replay window
     const stateExpMs = Date.now() + 15 * 60 * 1000;
-    const state = signJSON({ slug, amount, payment_hash, iat: Date.now(), exp: stateExpMs });
+    const state = signJSON({ slug, amount, payment_hash, provider: PAYMENTS_PROVIDER, iat: Date.now(), exp: stateExpMs });
 
     res.json({
       slug,
@@ -405,31 +394,22 @@ app.get(
     const state = String(req.query.state || '');
     if (!payment_hash || !state) return res.status(400).json({ error: 'missing params' });
 
-    if (!LNBITS_URL || !LNBITS_READ_KEY) {
-      return res.status(500).json({ error: 'LNbits is not configured' });
-    }
-
     const stateData = verifySignedJSON(state);
     if (!stateData) return res.status(400).json({ error: 'bad state' });
     if (stateData.exp && Date.now() > stateData.exp) return res.status(400).json({ error: 'state expired' });
     if (stateData.payment_hash !== payment_hash) return res.status(400).json({ error: 'state mismatch' });
 
-    let r;
+    // Ensure we don't accidentally switch providers between create and poll.
+    const provider = stateData.provider || PAYMENTS_PROVIDER;
+
+    let paid;
     try {
-      r = await fetch(`${LNBITS_URL}/api/v1/payments/${encodeURIComponent(payment_hash)}`, {
-        headers: { 'X-Api-Key': LNBITS_READ_KEY },
-      });
+      paid = await checkInvoicePaid({ provider, payment_hash });
     } catch (e) {
-      return res.status(502).json({ error: 'failed to check payment', detail: String(e?.message || e) });
+      const status = Number(e?.statusCode || 502);
+      const detail = status >= 500 ? String(e?.detail || e?.message || 'error') : undefined;
+      return res.status(status).json({ error: String(e?.message || 'failed to check payment'), detail });
     }
-
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(502).json({ error: 'failed to check payment', detail: text });
-    }
-
-    const data = await r.json();
-    const paid = Boolean(data.paid);
 
     if (paid) {
       const slug = stateData.slug;

@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +16,8 @@
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "gray-matter": "^4.0.3",
-    "marked": "^17.0.2"
+    "marked": "^17.0.2",
+    "nostr-tools": "^2.14.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
