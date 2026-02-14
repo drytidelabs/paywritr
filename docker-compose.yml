@@ -3,13 +3,25 @@ services:
     build: .
     ports:
       - "3000:3000"
+    restart: unless-stopped
+    # Put secrets in a local .env (not committed). See .env.example.
+    env_file:
+      - .env
     environment:
       - PORT=3000
       - BASE_URL=http://localhost:3000
       - SITE_TITLE=PayBlog
-      - APP_SECRET=${APP_SECRET}
       - UNLOCK_DAYS=30
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      # Payments provider switch:
+      #   lnbits (default) or alby_nwc
+      - PAYMENTS_PROVIDER=${PAYMENTS_PROVIDER:-lnbits}
+      # LNbits provider
       - LNBITS_URL=${LNBITS_URL}
       - LNBITS_INVOICE_KEY=${LNBITS_INVOICE_KEY}
       - LNBITS_READ_KEY=${LNBITS_READ_KEY}
+      # Alby NWC provider
+      - ALBY_NWC_URL=${ALBY_NWC_URL}
+    volumes:
+      # Optional: edit posts without rebuilding the container.
+      - ./content:/app/content:ro
