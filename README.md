@@ -4,7 +4,7 @@ Hyper-minimalist single-author flat-file blog with per-post Lightning paygating.
 
 Supports:
 - **LNbits** (default)
-- **Alby Nostr Wallet Connect (NWC)** (`PAYMENTS_PROVIDER=alby_nwc`)
+- **Alby Hub** (`PAYMENTS_PROVIDER=alby_hub`)
 
 - No accounts
 - No database
@@ -26,16 +26,16 @@ In LNbits you’ll need two API keys:
 - **Invoice key** (to create invoices)
 - **Read key** (to check invoice status)
 
-### Option B: Alby Nostr Wallet Connect (NWC)
-This uses an Alby wallet connection string so your server does not need to run or trust an LNbits instance.
+### Option B: Alby Hub
+This uses an Alby Hub wallet connection string so your server does not need to run or trust an LNbits instance.
 
-Important: NWC (NIP-47) `make_invoice.amount` is **millisatoshis (msats)**, not sats (1 sat = 1000 msats). Paywritr handles this conversion internally.
+Important: Under the hood this uses NIP-47 (`nostr+walletconnect`), where `make_invoice.amount` is **millisatoshis (msats)**, not sats (1 sat = 1000 msats). Paywritr handles this conversion internally.
 
 Set:
-- `PAYMENTS_PROVIDER=alby_nwc`
-- `ALBY_NWC_URL=nostr+walletconnect://...`
+- `PAYMENTS_PROVIDER=alby_hub`
+- `ALBY_HUB_URL=nostr+walletconnect://...`
 
-Security note: `ALBY_NWC_URL` is a secret (it contains a key). Do not commit it.
+Security note: `ALBY_HUB_URL` is a secret (it contains a key). Do not commit it.
 
 ## 2) Configure
 Copy env example and set values:
@@ -49,7 +49,7 @@ Set at minimum:
 
 Then, depending on provider:
 - **LNbits** (default): `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
-- **Alby NWC**: `PAYMENTS_PROVIDER=alby_nwc` and `ALBY_NWC_URL`
+- **Alby Hub**: `PAYMENTS_PROVIDER=alby_hub` and `ALBY_HUB_URL`
 
 ## 3) Run locally
 
@@ -63,10 +63,10 @@ LNBITS_INVOICE_KEY=... \
 LNBITS_READ_KEY=... \
 npm run dev
 
-# Alby NWC
-PAYMENTS_PROVIDER=alby_nwc \
+# Alby Hub
+PAYMENTS_PROVIDER=alby_hub \
 APP_SECRET=dev-secret \
-ALBY_NWC_URL='nostr+walletconnect://...'
+ALBY_HUB_URL='nostr+walletconnect://...'
 npm run dev
 ```
 
@@ -83,10 +83,10 @@ export LNBITS_READ_KEY='...'
 
 docker compose up --build
 
-# Alby NWC
-export PAYMENTS_PROVIDER='alby_nwc'
+# Alby Hub
+export PAYMENTS_PROVIDER='alby_hub'
 export APP_SECRET='your-long-random-secret'
-export ALBY_NWC_URL='nostr+walletconnect://...'
+export ALBY_HUB_URL='nostr+walletconnect://...'
 
 docker compose up --build
 ```
