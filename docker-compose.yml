@@ -13,8 +13,8 @@ services:
       - SITE_TITLE=Paywritr
       - UNLOCK_DAYS=30
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
-      # Payments provider switch: lnbits (default) or alby_hub
-      - PAYMENTS_PROVIDER=${PAYMENTS_PROVIDER:-lnbits}
+      # Payments provider switch: alby_hub (default) or lnbits
+      - PAYMENTS_PROVIDER=${PAYMENTS_PROVIDER:-alby_hub}
       # LNbits provider
       - LNBITS_URL=${LNBITS_URL}
       - LNBITS_INVOICE_KEY=${LNBITS_INVOICE_KEY}
