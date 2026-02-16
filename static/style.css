@@ -39,8 +39,12 @@ a:hover{opacity:.85}
 .paywall-meta{color:var(--muted);font-size:14px;margin-bottom:12px}
 .btn{appearance:none;border:1px solid var(--fg);background:var(--fg);color:#fff;border-radius:999px;padding:10px 14px;font-weight:600;cursor:pointer}
 .btn:hover{opacity:.92}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-secondary{background:#fff;color:var(--fg)}
+.paywall-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .invoice{margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
 .invoice-row{margin-bottom:12px}
+.invoice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 .bolt11{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;border:1px solid var(--border);padding:10px;border-radius:10px;font-size:12px}
 #qrcode{background:#fff;display:inline-block;padding:10px;border-radius:12px;border:1px solid var(--border)}
 .status{margin-top:8px;color:var(--muted);font-size:14px}
