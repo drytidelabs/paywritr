@@ -26,6 +26,7 @@ This document defines what a *real MVP* for Paywritr should include **beyond** t
 
 2. **(P0) Structured logging + request correlation for pay/unlock flow**
    - Minimal logs around invoice create, payment confirm, and content serve.
+   - Add timing logs around each `lookup_invoice` call (duration + timeout vs response) to distinguish upstream latency vs our retry behavior — without adding a DB.
 
 3. **(P0) Robust upstream failure handling**
    - Gracefully handle provider downtime/timeouts with clear user messaging + safe retry paths.
