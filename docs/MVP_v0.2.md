@@ -102,6 +102,11 @@ This document defines what a *real MVP* for Paywritr should include **beyond** t
 
 ## Out of scope (explicitly NOT MVP v0.2)
 
+Flatness constraints (explicit):
+- **No login system** (including *login-with-Lightning* / LNURL-auth) in MVP v0.2.
+- **No cross-device access guarantee** in MVP v0.2 (cookie-based unlocks are per device/browser).
+
+Other out-of-scope items:
 - Reader accounts/logins, subscriptions
 - Multi-author roles/permissions
 - Multiple payment providers beyond the interface scaffolding
