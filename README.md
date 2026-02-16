@@ -77,7 +77,26 @@ docker compose up --build
 
 ## Writing posts
 
-Create `content/posts/my-post.md`:
+Posts live in `content/posts/*.md`.
+
+### Quick start
+
+Copy a template:
+
+- `templates/post.free.md`
+- `templates/post.paywalled.md`
+
+Then save it as `content/posts/<slug>.md` (the slug is the filename).
+
+### Frontmatter (v0.1)
+
+Supported keys:
+- `title`
+- `date`
+- `price_sats` (paywalled when `> 0`)
+- `description` (optional)
+
+Example:
 
 ```md
 ---
@@ -95,6 +114,14 @@ This is the full post.
 ```
 
 `price_sats: 0` makes a post free.
+
+More details: **[`docs/authoring.md`](docs/authoring.md)**.
+
+## Docs
+
+- Authoring: `docs/authoring.md`
+- Configuration: `docs/configuration.md`
+- Deploy: `docs/deploy.md`
 
 ## Deployment notes
 
