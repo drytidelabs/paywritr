@@ -18,20 +18,19 @@ This document defines what a *real MVP* for Paywritr should include **beyond** t
 ## Prioritized requirements (grouped)
 
 ### Reliability (P0 unless noted)
-1. **(P0) Payment state persistence (server-side entitlements)**
-   - Add a minimal server-side record of invoice/payment → post entitlement.
-   - Cookie becomes a convenience, not the sole source of truth.
 
-2. **(P0) Webhook/idempotency handling for payment confirmation**
+> Note: Server-side entitlements persistence is intentionally **parked** (see `docs/PARKING_LOT.md`) to keep MVP flat.
+
+1. **(P0) Webhook/idempotency handling for payment confirmation**
    - Safe retries; no double-unlocks; no stuck “paid but locked.”
 
-3. **(P0) Structured logging + request correlation for pay/unlock flow**
-   - Minimal logs around invoice create, payment confirm, entitlement issue, and content serve.
+2. **(P0) Structured logging + request correlation for pay/unlock flow**
+   - Minimal logs around invoice create, payment confirm, and content serve.
 
-4. **(P0) Robust upstream failure handling**
+3. **(P0) Robust upstream failure handling**
    - Gracefully handle provider downtime/timeouts with clear user messaging + safe retry paths.
 
-5. **(P1) Diagnostics endpoints**
+4. **(P1) Diagnostics endpoints**
    - Keep `/healthz` and optionally add `/readyz` if needed for deployments.
 
 ### Admin / authoring
