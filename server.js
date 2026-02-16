@@ -305,17 +305,31 @@ app.get(
       <div class="paywall-card">
         <div class="paywall-title">Unlock this post</div>
         <div class="paywall-meta">Price: <strong>${escapeHtml(priceLine)}</strong></div>
-        <button class="btn" id="unlockBtn">Unlock for ${escapeHtml(post.price_sats)} sats</button>
+
+        <div class="status" id="status">To continue, pay once via Lightning.</div>
+        <div class="status" id="statusHelp">After payment, this page unlocks automatically on this device.</div>
+
+        <div class="paywall-actions">
+          <button class="btn" id="getInvoiceBtn">Get invoice</button>
+          <button class="btn btn-secondary" id="newInvoiceBtn" hidden>Get a new invoice</button>
+        </div>
+
         <div class="invoice" id="invoice" hidden>
           <div class="invoice-row">
             <div class="muted">Invoice</div>
             <code class="bolt11" id="bolt11"></code>
+            <div class="invoice-actions">
+              <button class="btn btn-secondary" id="copyInvoiceBtn" type="button">Copy invoice</button>
+            </div>
           </div>
           <div class="invoice-row">
             <div class="muted">QR</div>
             <div id="qrcode"></div>
           </div>
-          <div class="status" id="status">Waiting for payment…</div>
+          <div class="invoice-actions">
+            <button class="btn btn-secondary" id="refreshStatusBtn" type="button">Refresh status</button>
+            <button class="btn btn-secondary" id="reloadBtn" type="button">Reload page</button>
+          </div>
         </div>
       </div>
     </section>
