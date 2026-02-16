@@ -1,6 +1,14 @@
 node_modules
 npm-debug.log
+
+# env / secrets
 .env
+.env.*
+*.pem
+*.key
+secrets*
+*secret*
+
 .git
 .gitignore
 .DS_Store
