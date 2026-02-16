@@ -1,3 +1,10 @@
-node_modules
-.env
+node_modules/
 .DS_Store
+
+# env / secrets
+.env
+.env.*
+*.pem
+*.key
+secrets*
+*secret*
