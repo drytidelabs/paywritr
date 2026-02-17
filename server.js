@@ -318,6 +318,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
     <div class="container">
       <div class="site-header-row">
         <a class="brand" href="/">${escapeHtml(SITE_TITLE)}</a>
+        <button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Toggle light/dark mode" aria-pressed="false">Light</button>
       </div>
       ${nav}
     </div>
@@ -334,6 +335,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
   </footer>
 
   ${extraBody}
+  <script src="/static/scheme-toggle.js"></script>
 </body>
 </html>`;
 }
