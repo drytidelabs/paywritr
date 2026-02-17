@@ -1,8 +1,13 @@
 ---
+type: post
 title: Free note
-date: 2026-02-12
+slug: free-note
+published_date: 2026-02-12
+draft: false
 price_sats: 0
-description: A free post (no paywall).
+summary: A free post (no paywall).
+aliases: []
+topics: []
 ---
 
 This one is free. No invoice, no waiting.

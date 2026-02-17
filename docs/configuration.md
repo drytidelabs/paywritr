@@ -17,9 +17,9 @@ Paywritr is configured via environment variables.
 - `COOKIE_SECURE` (default: `false`)
   - Set `true` in production behind HTTPS so cookies are marked `Secure`.
 
-## Payments provider (v0.1)
+## Payments provider (v0.2)
 
-v0.1 ships with **Alby Hub only**.
+v0.2 currently ships with **Alby Hub only**.
 
 - `PAYMENTS_PROVIDER=alby_hub`
 - `ALBY_HUB_URL`

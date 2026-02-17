@@ -1,7 +1,7 @@
 ---
-type: post
-title: "New Post Title"
-slug: "new-post-title"
+type: page
+title: "About"
+slug: "about"
 published_date: "2026-02-16"
 draft: false
 price_sats: 0
@@ -10,4 +10,4 @@ aliases: []
 topics: []
 ---
 
-Write your post here.
+Write your page content here.

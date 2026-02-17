@@ -1,8 +1,13 @@
 ---
+type: post
 title: "New Premium Post"
-date: "2026-02-16"
+slug: "new-premium-post"
+published_date: "2026-02-16"
+draft: false
 price_sats: 500
-description: "Optional short description for the homepage."
+summary: "Optional short description."
+aliases: []
+topics: []
 ---
 
 This paragraph is the teaser.
