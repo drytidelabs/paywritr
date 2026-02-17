@@ -6,12 +6,21 @@ import cookieParser from 'cookie-parser';
 import { marked } from 'marked';
 import fs from 'node:fs/promises';
 
-import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
+import { parsePaymentsProvider, createInvoice, checkInvoicePaid, classifyProviderError } from './lib/payments.js';
 import { scanContent, findCanonical, ContentValidationError } from './lib/content.js';
 import { loadSiteMeta, loadThemeMeta } from './lib/site_metadata.js';
 import { renderMustache } from './lib/template_renderer.js';
 import { buildThemeContext } from './lib/theme_context.js';
 import { loadThemePartials, resolveTemplate, loadThemeTemplate } from './lib/theme_templates.js';
+
+// --- Structured payflow logging (#37) ---
+function correlationId() {
+  return crypto.randomBytes(8).toString('hex');
+}
+
+function paylog(cid, event, data = {}) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), cid, event, ...data }));
+}
 
 export const app = express();
 
@@ -703,6 +712,7 @@ app.get(
 app.get(
   '/api/invoice',
   asyncHandler(async (req, res) => {
+    const cid = correlationId();
     const requestedSlug = String(req.query.slug || '');
     if (!requestedSlug) return res.status(400).json({ error: 'missing slug' });
 
@@ -725,13 +735,19 @@ app.get(
     const site = await loadSiteMeta();
     const memo = `${site.title}: ${post.title} (${slug})`;
 
+    paylog(cid, 'invoice_create_start', { slug, amount, provider: PAYMENTS_PROVIDER });
+    const t0 = Date.now();
+
     let inv;
     try {
       inv = await createInvoice({ provider: PAYMENTS_PROVIDER, amountSats: amount, memo, slug });
+      paylog(cid, 'invoice_create_ok', { slug, provider: PAYMENTS_PROVIDER, duration_ms: Date.now() - t0 });
     } catch (e) {
+      const duration_ms = Date.now() - t0;
+      const classified = classifyProviderError(e);
+      paylog(cid, 'invoice_create_error', { slug, provider: PAYMENTS_PROVIDER, duration_ms, category: classified.category, error: classified.message });
       const status = Number(e?.statusCode || 502);
-      const detail = status >= 500 ? String(e?.detail || e?.message || 'error') : undefined;
-      return res.status(status).json({ error: String(e?.message || 'failed to create invoice'), detail });
+      return res.status(status).json({ error: classified.message, retryable: classified.retryable });
     }
 
     const payment_hash = inv.payment_hash;
@@ -755,6 +771,7 @@ app.get(
 app.get(
   '/api/invoice/status',
   asyncHandler(async (req, res) => {
+    const cid = correlationId();
     const payment_hash = String(req.query.payment_hash || '');
     const state = String(req.query.state || '');
     if (!payment_hash || !state) return res.status(400).json({ error: 'missing params' });
@@ -767,17 +784,24 @@ app.get(
     // Ensure we don't accidentally switch providers between create and poll.
     const provider = stateData.provider || PAYMENTS_PROVIDER;
 
+    paylog(cid, 'invoice_status_start', { slug: stateData.slug, payment_hash: payment_hash.slice(0, 12) + '…', provider });
+    const t0 = Date.now();
+
     let paid;
     try {
       paid = await checkInvoicePaid({ provider, payment_hash });
+      paylog(cid, 'invoice_status_ok', { slug: stateData.slug, paid, duration_ms: Date.now() - t0 });
     } catch (e) {
+      const duration_ms = Date.now() - t0;
+      const classified = classifyProviderError(e);
+      paylog(cid, 'invoice_status_error', { slug: stateData.slug, duration_ms, category: classified.category, error: classified.message });
       const status = Number(e?.statusCode || 502);
-      const detail = status >= 500 ? String(e?.detail || e?.message || 'error') : undefined;
-      return res.status(status).json({ error: String(e?.message || 'failed to check payment'), detail });
+      return res.status(status).json({ error: classified.message, retryable: classified.retryable });
     }
 
     if (paid) {
       const stateSlug = stateData.slug;
+      paylog(cid, 'unlock_cookie_issue', { slug: stateSlug });
 
       let resolved;
       try {
