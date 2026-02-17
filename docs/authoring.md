@@ -1,4 +1,4 @@
-# Authoring (v0.1)
+# Authoring (v0.2)
 
 Paywritr is a flat-file Markdown blog.
 
@@ -22,7 +22,7 @@ Canonical keys:
 - `draft` (bool; `true` = not published)
 - `price_sats` (int; for `type: page` must be `0`)
 - `summary` (string; optional)
-- `aliases` (list of old slugs; optional)
+- `aliases` (list of old slugs; optional; **requests to those slugs 301 redirect to the canonical slug**)
 - `topics` (list; optional)
 
 Example (free post):

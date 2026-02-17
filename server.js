@@ -145,7 +145,7 @@ async function listPosts() {
     }));
 }
 
-async function loadContent({ type, slug }) {
+async function resolveContent({ type, slug, allowAlias = false }) {
   assertValidSlug(slug);
 
   const scanned = await scanContent();
@@ -155,8 +155,8 @@ async function loadContent({ type, slug }) {
     err.statusCode = 404;
     throw err;
   }
-  if (found.kind === 'alias') {
-    // Alias redirects are implemented in #75; for now treat aliases as not found.
+
+  if (found.kind === 'alias' && !allowAlias) {
     const err = new Error('not found');
     err.statusCode = 404;
     throw err;
@@ -182,7 +182,7 @@ async function loadContent({ type, slug }) {
   const teaserHtml = renderMarkdown(teaserMd);
   const fullHtml = renderMarkdown(body);
 
-  return {
+  const view = {
     type,
     slug: c.slug,
     title: c.title,
@@ -193,14 +193,34 @@ async function loadContent({ type, slug }) {
     fullHtml,
     hasMoreSplit,
   };
+
+  return {
+    kind: found.kind,
+    canonicalSlug: c.slug,
+    // only set when kind==='alias'
+    requestedSlug: slug,
+    view,
+  };
+}
+
+async function resolvePost(slug, { allowAlias = false } = {}) {
+  const r = await resolveContent({ type: 'post', slug, allowAlias });
+  return { kind: r.kind, canonicalSlug: r.canonicalSlug, requestedSlug: r.requestedSlug, post: r.view };
+}
+
+async function resolvePage(slug, { allowAlias = false } = {}) {
+  const r = await resolveContent({ type: 'page', slug, allowAlias });
+  return { kind: r.kind, canonicalSlug: r.canonicalSlug, requestedSlug: r.requestedSlug, page: r.view };
 }
 
 async function loadPost(slug) {
-  return await loadContent({ type: 'post', slug });
+  const r = await resolvePost(slug, { allowAlias: false });
+  return r.post;
 }
 
 async function loadPage(slug) {
-  return await loadContent({ type: 'page', slug });
+  const r = await resolvePage(slug, { allowAlias: false });
+  return r.page;
 }
 
 function escapeHtml(s) {
@@ -346,10 +366,10 @@ app.get(
 app.get(
   '/p/:slug',
   asyncHandler(async (req, res) => {
-    const slug = req.params.slug;
-    let post;
+    const requestedSlug = req.params.slug;
+    let resolved;
     try {
-      post = await loadPost(slug);
+      resolved = await resolvePost(requestedSlug, { allowAlias: true });
     } catch (e) {
       if (e instanceof ContentValidationError) {
         res.status(500).type('html').send(
@@ -364,6 +384,30 @@ app.get(
       return;
     }
 
+    if (resolved.kind === 'alias') {
+      // Preserve unlocks across slug renames (best-effort): if a user previously unlocked
+      // the *old* slug on this device, copy that unlock cookie to the new canonical slug.
+      const tok = req.cookies?.[unlockCookieName(requestedSlug)];
+      const data = verifySignedJSON(tok);
+      if (data && data.slug === requestedSlug && typeof data.exp === 'number' && Date.now() <= data.exp) {
+        const maxAge = Math.max(0, data.exp - Date.now());
+        const newTok = signJSON({ slug: resolved.canonicalSlug, exp: data.exp });
+        res.cookie(unlockCookieName(resolved.canonicalSlug), newTok, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: COOKIE_SECURE,
+          maxAge,
+          path: '/',
+        });
+      }
+
+      res.redirect(301, `/p/${encodeURIComponent(resolved.canonicalSlug)}/`);
+      return;
+    }
+
+    const post = resolved.post;
+    const slug = resolved.canonicalSlug;
+
     res.type('html').send(
       layout({
         title: post.title,
@@ -377,18 +421,21 @@ app.get(
 app.get(
   '/api/invoice',
   asyncHandler(async (req, res) => {
-    const slug = String(req.query.slug || '');
-    if (!slug) return res.status(400).json({ error: 'missing slug' });
+    const requestedSlug = String(req.query.slug || '');
+    if (!requestedSlug) return res.status(400).json({ error: 'missing slug' });
 
-    let post;
+    let resolved;
     try {
-      post = await loadPost(slug);
+      resolved = await resolvePost(requestedSlug, { allowAlias: true });
     } catch (e) {
       if (e instanceof ContentValidationError) {
         return res.status(500).json({ error: 'content error', detail: e.message });
       }
       return res.status(404).json({ error: 'unknown post' });
     }
+
+    const post = resolved.post;
+    const slug = resolved.canonicalSlug;
 
     if (post.price_sats <= 0) return res.status(400).json({ error: 'post is free' });
 
@@ -417,7 +464,7 @@ app.get(
       payment_hash,
       payment_request,
       state,
-      pay_url: `${BASE_URL}/post/${encodeURIComponent(slug)}`,
+      pay_url: `${BASE_URL}/p/${encodeURIComponent(slug)}/`,
     });
   })
 );
@@ -447,16 +494,19 @@ app.get(
     }
 
     if (paid) {
-      const slug = stateData.slug;
-      // ensure slug in state is valid & corresponds to a real post
+      const stateSlug = stateData.slug;
+
+      let resolved;
       try {
-        await loadPost(slug);
+        resolved = await resolvePost(stateSlug, { allowAlias: true });
       } catch (e) {
         if (e instanceof ContentValidationError) {
           return res.status(500).json({ error: 'content error', detail: e.message });
         }
         return res.status(400).json({ error: 'unknown post for state' });
       }
+
+      const slug = resolved.canonicalSlug;
 
       const days = Number.isFinite(UNLOCK_DAYS) && UNLOCK_DAYS > 0 ? UNLOCK_DAYS : 30;
       const exp = Date.now() + days * 24 * 60 * 60 * 1000;
@@ -487,9 +537,9 @@ app.get(
       return;
     }
 
-    let page;
+    let resolved;
     try {
-      page = await loadPage(slug);
+      resolved = await resolvePage(slug, { allowAlias: true });
     } catch (e) {
       if (e instanceof ContentValidationError) {
         res.status(500).type('html').send(
@@ -503,6 +553,13 @@ app.get(
       res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
       return;
     }
+
+    if (resolved.kind === 'alias') {
+      res.redirect(301, `/${encodeURIComponent(resolved.canonicalSlug)}/`);
+      return;
+    }
+
+    const page = resolved.page;
 
     res.type('html').send(
       layout({
