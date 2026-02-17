@@ -20,6 +20,7 @@ These are the minimum semantic colors used across the UI.
 - `--color-border` — separators/borders
 - `--color-accent` — links / primary accent
 - `--color-accent-contrast` — text on accent background
+- `--color-qr-bg` — QR code container background (keep high contrast / usually white)
 
 Optional (add only when needed):
 - `--color-success`, `--color-warning`, `--color-danger`

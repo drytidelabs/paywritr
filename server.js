@@ -278,11 +278,22 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
     : '';
 
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-color-scheme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)} — ${escapeHtml(SITE_TITLE)}</title>
+
+  <script>
+    // #73: scheme plumbing. Default to system preference (cookie override/persistence in #72).
+    (function () {
+      try {
+        var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        if (m && m.matches) document.documentElement.setAttribute('data-color-scheme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+
   <link rel="stylesheet" href="/static/style.css" />
   ${themeHref ? `<link rel="stylesheet" href="${themeHref}" />` : ''}
   ${extraHead}
