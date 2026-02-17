@@ -1,0 +1,17 @@
+<section class="hero">
+  <h1>{{site.title}}</h1>
+  {{#site.tagline}}<p class="muted">{{site.tagline}}</p>{{/site.tagline}}
+</section>
+
+<section class="post-list">
+  {{#home.posts}}
+    <article class="post-card">
+      <h2><a href="/p/{{slug}}/">{{title}}</a></h2>
+      <div class="meta">{{#published_date}}{{published_date}} · {{/published_date}}{{price_label}}</div>
+      {{#summary}}<p class="desc">{{summary}}</p>{{/summary}}
+    </article>
+  {{/home.posts}}
+  {{^home.posts}}
+    <p class="muted">No posts yet.</p>
+  {{/home.posts}}
+</section>

@@ -335,6 +335,51 @@ async function renderWithTheme({ kind, view }) {
   return renderMustache({ template: layoutTpl, view: layoutView, partials });
 }
 
+async function renderStatusPage({ req, res, status = 200, kind, title, contentHtml, extraBody = '' }) {
+  const [site, themeCssHref, baseCtx] = await Promise.all([
+    loadSiteMeta(),
+    resolveThemeCssHref(),
+    buildThemeContext({ themeName: THEME }),
+  ]);
+
+  const themed = await renderWithTheme({
+    kind,
+    view: {
+      ...baseCtx,
+      site,
+      year: new Date().getUTCFullYear(),
+      theme: {
+        ...(baseCtx.theme || {}),
+        css_href: themeCssHref,
+      },
+      global: {
+        ...(baseCtx.global || {}),
+        scheme_head_script: schemeHeadScriptHtml(),
+        scheme_toggle_html: schemeToggleHtml(),
+        extra_body: extraBody,
+      },
+      page: { title },
+      content_html: contentHtml,
+    },
+  });
+
+  if (themed) {
+    res.status(status).type('html').send(themed);
+    return;
+  }
+
+  res
+    .status(status)
+    .type('html')
+    .send(
+      await layout({
+        title,
+        content: contentHtml,
+        extraBody,
+      })
+    );
+}
+
 async function layout({ title, content, extraHead = '', extraBody = '' }) {
   const [themeHref, pages, site, themeMeta] = await Promise.all([
     resolveThemeCssHref(),
@@ -421,7 +466,12 @@ app.get(
         },
         home: {
           posts: posts.map((p) => ({
-            ...p,
+            type: 'post',
+            slug: p.slug,
+            title: p.title,
+            published_date: p.date,
+            summary: p.description,
+            price_sats: p.price_sats,
             price_label: p.price_sats > 0 ? `${p.price_sats} sats` : 'free',
           })),
         },
@@ -545,15 +595,24 @@ app.get(
       resolved = await resolvePost(requestedSlug, { allowAlias: true });
     } catch (e) {
       if (e instanceof ContentValidationError) {
-        res.status(500).type('html').send(
-          await layout({
-            title: 'Content error',
-            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
-          })
-        );
+        await renderStatusPage({
+          req,
+          res,
+          status: 500,
+          kind: 'error',
+          title: 'Content error',
+          contentHtml: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
+        });
         return;
       }
-      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      await renderStatusPage({
+        req,
+        res,
+        status: 404,
+        kind: 'notfound',
+        title: 'Not found',
+        contentHtml: '<h1>Not found</h1>',
+      });
       return;
     }
 
@@ -754,7 +813,14 @@ app.get(
     // Avoid route collisions with known prefixes.
     const reserved = new Set(['p', 'post', 'api', 'static', 'healthz', 'readyz']);
     if (reserved.has(String(slug || '').toLowerCase())) {
-      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      await renderStatusPage({
+        req,
+        res,
+        status: 404,
+        kind: 'notfound',
+        title: 'Not found',
+        contentHtml: '<h1>Not found</h1>',
+      });
       return;
     }
 
@@ -763,15 +829,24 @@ app.get(
       resolved = await resolvePage(slug, { allowAlias: true });
     } catch (e) {
       if (e instanceof ContentValidationError) {
-        res.status(500).type('html').send(
-          await layout({
-            title: 'Content error',
-            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
-          })
-        );
+        await renderStatusPage({
+          req,
+          res,
+          status: 500,
+          kind: 'error',
+          title: 'Content error',
+          contentHtml: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
+        });
         return;
       }
-      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      await renderStatusPage({
+        req,
+        res,
+        status: 404,
+        kind: 'notfound',
+        title: 'Not found',
+        contentHtml: '<h1>Not found</h1>',
+      });
       return;
     }
 
@@ -833,6 +908,20 @@ app.get(
   })
 );
 
+// Catch-all 404 (routes that fall through)
+app.use(
+  asyncHandler(async (req, res) => {
+    await renderStatusPage({
+      req,
+      res,
+      status: 404,
+      kind: 'notfound',
+      title: 'Not found',
+      contentHtml: '<h1>Not found</h1>',
+    });
+  })
+);
+
 // Basic error handler to avoid unhandled promise rejections leaking stack traces.
 // (Express 5 will route async errors here.)
 app.use(async (err, req, res, next) => {
@@ -844,7 +933,14 @@ app.use(async (err, req, res, next) => {
     return;
   }
 
-  res.status(status).type('html').send(await layout({ title: 'Error', content: `<h1>${escapeHtml(msg)}</h1>` }));
+  await renderStatusPage({
+    req,
+    res,
+    status,
+    kind: 'error',
+    title: 'Error',
+    contentHtml: `<h1>${escapeHtml(msg)}</h1>`,
+  });
 });
 
 app.listen(PORT, () => {
