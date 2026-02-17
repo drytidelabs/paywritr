@@ -7,11 +7,11 @@ import fs from 'node:fs/promises';
 
 import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
 import { scanContent, findCanonical, ContentValidationError } from './lib/content.js';
+import { loadSiteMeta, loadThemeMeta } from './lib/site_metadata.js';
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const SITE_TITLE = process.env.SITE_TITLE || 'PayBlog';
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const PAYMENTS_PROVIDER = parsePaymentsProvider(process.env);
@@ -269,20 +269,28 @@ function escapeHtml(s) {
 }
 
 async function layout({ title, content, extraHead = '', extraBody = '' }) {
-  const themeHref = await resolveThemeCssHref();
-  const pages = await listPages();
+  const [themeHref, pages, site, themeMeta] = await Promise.all([
+    resolveThemeCssHref(),
+    listPages(),
+    loadSiteMeta(),
+    loadThemeMeta({ themeName: THEME }),
+  ]);
+
   const nav = pages.length
     ? `<nav class="site-nav" aria-label="Pages">${pages
         .map((p) => `<a class="nav-link" href="/${encodeURIComponent(p.slug)}/">${escapeHtml(p.title)}</a>`)
         .join('')}</nav>`
     : '';
 
+  const pageTitle = `${escapeHtml(title)} — ${escapeHtml(site.title)}`;
+
   return `<!doctype html>
 <html lang="en" data-color-scheme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(title)} — ${escapeHtml(SITE_TITLE)}</title>
+  <title>${pageTitle}</title>
+  ${site.description ? `<meta name="description" content="${escapeHtml(site.description)}" />` : ''}
 
   <script>
     // #72: persist scheme in cookie; if absent, default to system preference.
@@ -317,7 +325,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
   <header class="site-header">
     <div class="container">
       <div class="site-header-row">
-        <a class="brand" href="/">${escapeHtml(SITE_TITLE)}</a>
+        <a class="brand" href="/">${escapeHtml(site.title)}</a>
         <button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Toggle light/dark mode" aria-pressed="false">Light</button>
       </div>
       ${nav}
@@ -330,7 +338,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
 
   <footer class="site-footer">
     <div class="container">
-      <span>© ${new Date().getUTCFullYear()} ${escapeHtml(SITE_TITLE)}</span>
+      <span>© ${new Date().getUTCFullYear()} ${escapeHtml(site.title)}</span>
     </div>
   </footer>
 
@@ -343,7 +351,8 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
 app.get(
   '/',
   asyncHandler(async (req, res) => {
-    const posts = await listPosts();
+    const [posts, site] = await Promise.all([listPosts(), loadSiteMeta()]);
+
     const items = posts
       .map((p) => {
         const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
@@ -357,11 +366,11 @@ app.get(
 
     res.type('html').send(
       await layout({
-        title: 'Home',
+        title: site.title,
         content: `
       <section class="hero">
-        <h1>${escapeHtml(SITE_TITLE)}</h1>
-        <p class="muted">Minimal writing. Pay per post with Lightning.</p>
+        <h1>${escapeHtml(site.title)}</h1>
+        ${site.tagline ? `<p class="muted">${escapeHtml(site.tagline)}</p>` : ''}
       </section>
       <section class="post-list">${items || '<p class="muted">No posts yet.</p>'}</section>
     `,
@@ -516,7 +525,8 @@ app.get(
     if (post.price_sats <= 0) return res.status(400).json({ error: 'post is free' });
 
     const amount = post.price_sats;
-    const memo = `${SITE_TITLE}: ${post.title} (${slug})`;
+    const site = await loadSiteMeta();
+    const memo = `${site.title}: ${post.title} (${slug})`;
 
     let inv;
     try {
