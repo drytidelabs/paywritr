@@ -8,6 +8,9 @@ import fs from 'node:fs/promises';
 import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
 import { scanContent, findCanonical, ContentValidationError } from './lib/content.js';
 import { loadSiteMeta, loadThemeMeta } from './lib/site_metadata.js';
+import { renderMustache } from './lib/template_renderer.js';
+import { buildThemeContext } from './lib/theme_context.js';
+import { loadThemePartials, resolveTemplate, loadThemeTemplate } from './lib/theme_templates.js';
 
 const app = express();
 
@@ -268,6 +271,70 @@ function escapeHtml(s) {
     .replaceAll("'", '&#39;');
 }
 
+function schemeHeadScriptHtml() {
+  // Applies scheme early to avoid flash.
+  // Cookie write happens in /static/scheme-toggle.js; cookie read here.
+  return `<script>
+    (function () {
+      function getCookie(name) {
+        try {
+          var m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[-.$?*|{}()\\[\\]\\\\/+^]/g, '\\$&') + '=([^;]*)'));
+          return m ? decodeURIComponent(m[1]) : '';
+        } catch (e) {
+          return '';
+        }
+      }
+
+      try {
+        var v = (getCookie('paywritr_color_scheme') || '').toLowerCase();
+        if (v === 'light' || v === 'dark') {
+          document.documentElement.setAttribute('data-color-scheme', v);
+          return;
+        }
+
+        var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        if (m && m.matches) document.documentElement.setAttribute('data-color-scheme', 'dark');
+      } catch (e) {}
+    })();
+  </script>`;
+}
+
+function schemeToggleHtml() {
+  // NOTE: icon-only toggle is tracked in #100; this is the current working implementation.
+  return `<button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Toggle light/dark mode" aria-pressed="false">Light</button>`;
+}
+
+async function renderWithTheme({ kind, view }) {
+  // kind: home|post|page|content|...
+  // If the theme doesn't provide templates yet, return null (caller uses legacy render).
+  const layoutTpl = await loadThemeTemplate({ themeName: THEME, templateName: 'layout' });
+  if (!layoutTpl) return null;
+
+  const partials = await loadThemePartials({ themeName: THEME });
+
+  const resolved = await resolveTemplate({ themeName: THEME, kind });
+  const bodyTpl = resolved?.template;
+
+  // Built-in safe fallback body template (no errors)
+  const fallbackBodyTpl = `<article class="post">{{#content.title}}<h1>{{content.title}}</h1>{{/content.title}}<section class="content">{{{content_html}}}</section>{{{paywall_html}}}</article>`;
+
+  const bodyHtml = renderMustache({
+    template: bodyTpl || fallbackBodyTpl,
+    view,
+    partials,
+  });
+
+  const layoutView = {
+    ...view,
+    page: {
+      title: view?.page?.title || view?.site?.title || 'Paywritr',
+      body_html: bodyHtml,
+    },
+  };
+
+  return renderMustache({ template: layoutTpl, view: layoutView, partials });
+}
+
 async function layout({ title, content, extraHead = '', extraBody = '' }) {
   const [themeHref, pages, site, themeMeta] = await Promise.all([
     resolveThemeCssHref(),
@@ -292,30 +359,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
   <title>${pageTitle}</title>
   ${site.description ? `<meta name="description" content="${escapeHtml(site.description)}" />` : ''}
 
-  <script>
-    // #72: persist scheme in cookie; if absent, default to system preference.
-    (function () {
-      function getCookie(name) {
-        try {
-          var m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[-.$?*|{}()\[\]\\/+^]/g, '\\$&') + '=([^;]*)'));
-          return m ? decodeURIComponent(m[1]) : '';
-        } catch (e) {
-          return '';
-        }
-      }
-
-      try {
-        var v = (getCookie('paywritr_color_scheme') || '').toLowerCase();
-        if (v === 'light' || v === 'dark') {
-          document.documentElement.setAttribute('data-color-scheme', v);
-          return;
-        }
-
-        var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-        if (m && m.matches) document.documentElement.setAttribute('data-color-scheme', 'dark');
-      } catch (e) {}
-    })();
-  </script>
+  ${schemeHeadScriptHtml()}
 
   <link rel="stylesheet" href="/static/style.css" />
   ${themeHref ? `<link rel="stylesheet" href="${themeHref}" />` : ''}
@@ -326,7 +370,7 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
     <div class="container">
       <div class="site-header-row">
         <a class="brand" href="/">${escapeHtml(site.title)}</a>
-        <button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Toggle light/dark mode" aria-pressed="false">Light</button>
+        ${schemeToggleHtml()}
       </div>
       ${nav}
     </div>
@@ -351,8 +395,46 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
 app.get(
   '/',
   asyncHandler(async (req, res) => {
-    const [posts, site] = await Promise.all([listPosts(), loadSiteMeta()]);
+    const [posts, site, themeCssHref, baseCtx] = await Promise.all([
+      listPosts(),
+      loadSiteMeta(),
+      resolveThemeCssHref(),
+      buildThemeContext({ themeName: THEME }),
+    ]);
 
+    // Attempt theme template render
+    const themed = await renderWithTheme({
+      kind: 'home',
+      view: {
+        ...baseCtx,
+        site,
+        year: new Date().getUTCFullYear(),
+        theme: {
+          ...(baseCtx.theme || {}),
+          css_href: themeCssHref,
+        },
+        global: {
+          ...(baseCtx.global || {}),
+          scheme_head_script: schemeHeadScriptHtml(),
+          scheme_toggle_html: schemeToggleHtml(),
+          extra_body: '',
+        },
+        home: {
+          posts: posts.map((p) => ({
+            ...p,
+            price_label: p.price_sats > 0 ? `${p.price_sats} sats` : 'free',
+          })),
+        },
+        page: { title: site.title },
+      },
+    });
+
+    if (themed) {
+      res.type('html').send(themed);
+      return;
+    }
+
+    // Legacy render fallback
     const items = posts
       .map((p) => {
         const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
@@ -379,11 +461,11 @@ app.get(
   })
 );
 
-function renderPostHtml({ post, slug, req }) {
-  const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
+function buildPaywallHtml({ post, slug, unlocked }) {
   const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
+  if (post.price_sats <= 0 || unlocked) return '';
 
-  const paywall = post.price_sats > 0 && !unlocked ? `
+  return `
     <section class="paywall" id="paywall" data-slug="${escapeHtml(slug)}" data-price="${post.price_sats}">
       <div class="paywall-card">
         <div class="paywall-title">Unlock this post</div>
@@ -416,7 +498,13 @@ function renderPostHtml({ post, slug, req }) {
         </div>
       </div>
     </section>
-  ` : '';
+  `;
+}
+
+function renderPostHtml({ post, slug, req }) {
+  const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
+  const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
+  const paywall = buildPaywallHtml({ post, slug, unlocked });
 
   return `
     <article class="post">
@@ -493,6 +581,53 @@ app.get(
     const post = resolved.post;
     const slug = resolved.canonicalSlug;
 
+    const [site, themeCssHref, baseCtx] = await Promise.all([
+      loadSiteMeta(),
+      resolveThemeCssHref(),
+      buildThemeContext({ themeName: THEME }),
+    ]);
+
+    const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
+    const priceLabel = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
+
+    // Attempt theme template render
+    const themed = await renderWithTheme({
+      kind: 'post',
+      view: {
+        ...baseCtx,
+        site,
+        year: new Date().getUTCFullYear(),
+        theme: {
+          ...(baseCtx.theme || {}),
+          css_href: themeCssHref,
+        },
+        global: {
+          ...(baseCtx.global || {}),
+          scheme_head_script: schemeHeadScriptHtml(),
+          scheme_toggle_html: schemeToggleHtml(),
+          extra_body: `<script src="/static/qrcode.min.js"></script><script src="/static/pay.js"></script>`,
+        },
+        content: {
+          type: 'post',
+          slug,
+          title: post.title,
+          published_date: post.date,
+          summary: post.description,
+          price_sats: post.price_sats,
+          price_label: priceLabel,
+        },
+        content_html: unlocked ? post.fullHtml : post.teaserHtml,
+        paywall_html: buildPaywallHtml({ post, slug, unlocked }),
+        page: { title: post.title },
+      },
+    });
+
+    if (themed) {
+      res.type('html').send(themed);
+      return;
+    }
+
+    // Legacy render fallback
     res.type('html').send(
       await layout({
         title: post.title,
@@ -646,6 +781,48 @@ app.get(
     }
 
     const page = resolved.page;
+
+    const [site, themeCssHref, baseCtx] = await Promise.all([
+      loadSiteMeta(),
+      resolveThemeCssHref(),
+      buildThemeContext({ themeName: THEME }),
+    ]);
+
+    const themed = await renderWithTheme({
+      kind: 'page',
+      view: {
+        ...baseCtx,
+        site,
+        year: new Date().getUTCFullYear(),
+        theme: {
+          ...(baseCtx.theme || {}),
+          css_href: themeCssHref,
+        },
+        global: {
+          ...(baseCtx.global || {}),
+          scheme_head_script: schemeHeadScriptHtml(),
+          scheme_toggle_html: schemeToggleHtml(),
+          extra_body: '',
+        },
+        content: {
+          type: 'page',
+          slug: page.slug,
+          title: page.title,
+          published_date: page.date,
+          summary: page.description,
+          price_sats: page.price_sats,
+          price_label: 'free',
+        },
+        content_html: page.fullHtml,
+        paywall_html: '',
+        page: { title: page.title },
+      },
+    });
+
+    if (themed) {
+      res.type('html').send(themed);
+      return;
+    }
 
     res.type('html').send(
       await layout({
