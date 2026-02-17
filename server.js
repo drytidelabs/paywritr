@@ -1,5 +1,6 @@
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { marked } from 'marked';
@@ -12,7 +13,7 @@ import { renderMustache } from './lib/template_renderer.js';
 import { buildThemeContext } from './lib/theme_context.js';
 import { loadThemePartials, resolveTemplate, loadThemeTemplate } from './lib/theme_templates.js';
 
-const app = express();
+export const app = express();
 
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -945,6 +946,25 @@ app.use(async (err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[payblog] listening on ${BASE_URL}`);
-});
+export function startServer({ port = PORT } = {}) {
+  // NOTE: BASE_URL uses the configured PORT env var; this log is just informational.
+  return app.listen(port, () => {
+    console.log(`[payblog] listening on ${BASE_URL}`);
+  });
+}
+
+function isRunDirectly() {
+  // ESM equivalent of `require.main === module`.
+  // process.argv[1] is the entry script path.
+  try {
+    const entry = process.argv[1];
+    if (!entry) return false;
+    return import.meta.url === pathToFileURL(entry).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isRunDirectly()) {
+  startServer();
+}
