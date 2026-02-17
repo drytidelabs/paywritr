@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-color-scheme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{page.title}} — {{site.title}}</title>
+  {{#site.description}}<meta name="description" content="{{site.description}}" />{{/site.description}}
+
+  {{{global.scheme_head_script}}}
+
+  <link rel="stylesheet" href="/static/style.css" />
+  {{#theme.css_href}}<link rel="stylesheet" href="{{theme.css_href}}" />{{/theme.css_href}}
+</head>
+<body>
+  {{> header}}
+
+  <main class="container">
+    {{{page.body_html}}}
+  </main>
+
+  {{> footer}}
+
+  <script src="/static/scheme-toggle.js"></script>
+  {{{global.extra_body}}}
+</body>
+</html>
