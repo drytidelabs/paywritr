@@ -55,7 +55,11 @@ a{color:var(--color-accent);text-decoration-thickness:1px;text-underline-offset:
 a:hover{opacity:.85}
 .container{max-width:var(--content-max-width);margin:0 auto;padding:0 var(--space-5)}
 .site-header{padding:var(--space-6) 0;border-bottom:1px solid var(--color-border)}
+.site-header-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
 .brand{font-weight:600;letter-spacing:.2px;text-decoration:none;color:inherit}
+.site-nav{display:flex;flex-wrap:wrap;gap:var(--space-4);margin-top:var(--space-3)}
+.nav-link{color:var(--color-muted);text-decoration:none}
+.nav-link:hover{text-decoration:underline;color:var(--color-text)}
 .hero{padding:var(--space-7) 0 var(--space-3)}
 .hero h1{font-size:28px;line-height:1.2;margin:0 0 6px}
 .muted{color:var(--color-muted)}
