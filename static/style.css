@@ -8,6 +8,7 @@
   --color-border:#e9e9e9;
   --color-accent:#111;
   --color-accent-contrast:#fff;
+  --color-qr-bg:#fff; /* ensure QR code remains readable in dark scheme */
 
   --font-body:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   --font-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
@@ -41,6 +42,7 @@
   --color-border:rgba(242,242,240,0.12);
   --color-accent:#f2f2f0;
   --color-accent-contrast:#0f0f10;
+  --color-qr-bg:#fff; /* keep QR background white for contrast */
 }
 
 *{box-sizing:border-box}
@@ -88,6 +90,6 @@ a:hover{opacity:.85}
 .invoice-row{margin-bottom:12px}
 .invoice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 .bolt11{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--color-surface);border:1px solid var(--color-border);padding:10px;border-radius:var(--radius-2);font-size:12px}
-#qrcode{background:var(--color-surface);display:inline-block;padding:10px;border-radius:12px;border:1px solid var(--color-border)}
+#qrcode{background:var(--color-qr-bg);display:inline-block;padding:10px;border-radius:12px;border:1px solid var(--color-border)}
 .status{margin-top:8px;color:var(--color-muted);font-size:14px}
 .site-footer{padding:var(--space-6) 0;border-top:1px solid var(--color-border);color:var(--color-muted);font-size:13px}
