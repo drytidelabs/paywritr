@@ -285,9 +285,24 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
   <title>${escapeHtml(title)} — ${escapeHtml(SITE_TITLE)}</title>
 
   <script>
-    // #73: scheme plumbing. Default to system preference (cookie override/persistence in #72).
+    // #72: persist scheme in cookie; if absent, default to system preference.
     (function () {
+      function getCookie(name) {
+        try {
+          var m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[-.$?*|{}()\[\]\\/+^]/g, '\\$&') + '=([^;]*)'));
+          return m ? decodeURIComponent(m[1]) : '';
+        } catch (e) {
+          return '';
+        }
+      }
+
       try {
+        var v = (getCookie('paywritr_color_scheme') || '').toLowerCase();
+        if (v === 'light' || v === 'dark') {
+          document.documentElement.setAttribute('data-color-scheme', v);
+          return;
+        }
+
         var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
         if (m && m.matches) document.documentElement.setAttribute('data-color-scheme', 'dark');
       } catch (e) {}
