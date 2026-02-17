@@ -530,28 +530,28 @@ function buildPaywallHtml({ post, slug, unlocked }) {
   return `
     <section class="paywall" id="paywall" data-slug="${escapeHtml(slug)}" data-price="${post.price_sats}">
       <div class="paywall-card">
+        <div class="paywall-icon">⚡</div>
         <div class="paywall-title">Unlock this post</div>
-        <div class="paywall-meta">Price: <strong>${escapeHtml(priceLine)}</strong></div>
+        <div class="paywall-price">${escapeHtml(priceLine)}</div>
 
-        <div class="status" id="status">To continue, pay once via Lightning.</div>
-        <div class="status" id="statusHelp">After payment, this page unlocks automatically on this device.</div>
+        <div class="status" id="status">Pay once via Lightning to continue reading.</div>
+        <div class="status" id="statusHelp">Unlocks automatically on this device after payment.</div>
 
         <div class="paywall-actions">
           <button class="btn" id="getInvoiceBtn">Get invoice</button>
-          <button class="btn btn-secondary" id="newInvoiceBtn" hidden>Get a new invoice</button>
+          <button class="btn btn-secondary" id="newInvoiceBtn" hidden>New invoice</button>
         </div>
 
         <div class="invoice" id="invoice" hidden>
           <div class="invoice-row">
-            <div class="muted">Invoice</div>
-            <code class="bolt11" id="bolt11"></code>
-            <div class="invoice-actions">
-              <button class="btn btn-secondary" id="copyInvoiceBtn" type="button">Copy invoice</button>
-            </div>
+            <div id="qrcode"></div>
           </div>
           <div class="invoice-row">
-            <div class="muted">QR</div>
-            <div id="qrcode"></div>
+            <div class="invoice-label">Invoice</div>
+            <code class="bolt11" id="bolt11"></code>
+            <div class="invoice-actions">
+              <button class="btn btn-secondary" id="copyInvoiceBtn" type="button">Copy</button>
+            </div>
           </div>
           <div class="invoice-actions">
             <button class="btn btn-secondary" id="refreshStatusBtn" type="button">Refresh status</button>
