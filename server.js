@@ -145,16 +145,23 @@ async function listPosts() {
     }));
 }
 
-async function loadPost(slug) {
+async function loadContent({ type, slug }) {
   assertValidSlug(slug);
 
   const scanned = await scanContent();
-  const found = findCanonical(scanned, { type: 'post', slug });
+  const found = findCanonical(scanned, { type, slug });
   if (!found) {
     const err = new Error('not found');
     err.statusCode = 404;
     throw err;
   }
+  if (found.kind === 'alias') {
+    // Alias redirects are implemented in #75; for now treat aliases as not found.
+    const err = new Error('not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
   const c = found.content;
   if (c.draft) {
     const err = new Error('not found');
@@ -170,12 +177,13 @@ async function loadPost(slug) {
   // IMPORTANT: for paid posts, if the author forgets <!--more-->,
   // do NOT leak the entire post. Use a conservative fallback teaser.
   const price_sats = Number(c.price_sats || 0);
-  const teaserMd = price_sats > 0 && !hasMoreSplit ? computeFallbackTeaser(body) : (teaserMdRaw || '');
+  const teaserMd = type === 'post' && price_sats > 0 && !hasMoreSplit ? computeFallbackTeaser(body) : (teaserMdRaw || '');
 
   const teaserHtml = renderMarkdown(teaserMd);
   const fullHtml = renderMarkdown(body);
 
   return {
+    type,
     slug: c.slug,
     title: c.title,
     date: c.published_date,
@@ -185,6 +193,14 @@ async function loadPost(slug) {
     fullHtml,
     hasMoreSplit,
   };
+}
+
+async function loadPost(slug) {
+  return await loadContent({ type: 'post', slug });
+}
+
+async function loadPage(slug) {
+  return await loadContent({ type: 'page', slug });
 }
 
 function escapeHtml(s) {
@@ -236,7 +252,7 @@ app.get(
       .map((p) => {
         const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
         return `<article class="post-card">
-      <h2><a href="/post/${encodeURIComponent(p.slug)}">${escapeHtml(p.title)}</a></h2>
+      <h2><a href="/p/${encodeURIComponent(p.slug)}/">${escapeHtml(p.title)}</a></h2>
       <div class="meta">${p.date ? escapeHtml(p.date) : ''}${p.date ? ' · ' : ''}${escapeHtml(price)}</div>
       ${p.description ? `<p class="desc">${escapeHtml(p.description)}</p>` : ''}
     </article>`;
@@ -258,31 +274,11 @@ app.get(
   })
 );
 
-app.get(
-  '/post/:slug',
-  asyncHandler(async (req, res) => {
-    const slug = req.params.slug;
-    let post;
-    try {
-      post = await loadPost(slug);
-    } catch (e) {
-      if (e instanceof ContentValidationError) {
-        res.status(500).type('html').send(
-          layout({
-            title: 'Content error',
-            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
-          })
-        );
-        return;
-      }
-      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
-      return;
-    }
+function renderPostHtml({ post, slug, req }) {
+  const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
+  const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
 
-    const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
-    const priceLine = post.price_sats > 0 ? `${post.price_sats} sats` : 'free';
-
-    const paywall = post.price_sats > 0 && !unlocked ? `
+  const paywall = post.price_sats > 0 && !unlocked ? `
     <section class="paywall" id="paywall" data-slug="${escapeHtml(slug)}" data-price="${post.price_sats}">
       <div class="paywall-card">
         <div class="paywall-title">Unlock this post</div>
@@ -317,7 +313,7 @@ app.get(
     </section>
   ` : '';
 
-    const html = `
+  return `
     <article class="post">
       <h1>${escapeHtml(post.title)}</h1>
       <div class="meta">${post.date ? escapeHtml(post.date) : ''}${post.date ? ' · ' : ''}${escapeHtml(priceLine)}</div>
@@ -327,11 +323,51 @@ app.get(
       ${paywall}
     </article>
   `;
+}
+
+function renderPageHtml({ page }) {
+  return `
+    <article class="post">
+      <h1>${escapeHtml(page.title)}</h1>
+      <div class="meta">${page.date ? escapeHtml(page.date) : ''}</div>
+      <section class="content">${page.fullHtml}</section>
+    </article>
+  `;
+}
+
+app.get(
+  '/post/:slug',
+  asyncHandler(async (req, res) => {
+    // Back-compat: old post route.
+    res.redirect(301, `/p/${encodeURIComponent(req.params.slug)}/`);
+  })
+);
+
+app.get(
+  '/p/:slug',
+  asyncHandler(async (req, res) => {
+    const slug = req.params.slug;
+    let post;
+    try {
+      post = await loadPost(slug);
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        res.status(500).type('html').send(
+          layout({
+            title: 'Content error',
+            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
+          })
+        );
+        return;
+      }
+      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      return;
+    }
 
     res.type('html').send(
       layout({
         title: post.title,
-        content: html,
+        content: renderPostHtml({ post, slug, req }),
         extraBody: `<script src="/static/qrcode.min.js"></script><script src="/static/pay.js"></script>`,
       })
     );
@@ -439,6 +475,43 @@ app.get(
 );
 
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
+app.get(
+  '/:slug',
+  asyncHandler(async (req, res) => {
+    const slug = req.params.slug;
+    // Avoid route collisions with known prefixes.
+    const reserved = new Set(['p', 'post', 'api', 'static', 'healthz', 'readyz']);
+    if (reserved.has(String(slug || '').toLowerCase())) {
+      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      return;
+    }
+
+    let page;
+    try {
+      page = await loadPage(slug);
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        res.status(500).type('html').send(
+          layout({
+            title: 'Content error',
+            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
+          })
+        );
+        return;
+      }
+      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      return;
+    }
+
+    res.type('html').send(
+      layout({
+        title: page.title,
+        content: renderPageHtml({ page }),
+      })
+    );
+  })
+);
 
 // Basic error handler to avoid unhandled promise rejections leaking stack traces.
 // (Express 5 will route async errors here.)

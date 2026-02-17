@@ -2,9 +2,13 @@
 
 Paywritr is a flat-file Markdown blog.
 
-- Posts live in: `content/posts/*.md`
-- The **slug is the filename** (without `.md`). Example: `content/posts/hello.md` → `/post/hello`
+- Content lives in: `content/posts/*.md` (posts + pages)
+- The canonical URL slug is **frontmatter `slug`** (filename can be anything).
+- Routing:
+  - Posts: `/p/<slug>/`
+  - Pages: `/<slug>/`
 - A post is **paywalled** when `price_sats > 0`.
+- Pages are **never** paywalled (enforced by validation).
 - **Unlocks are per device/browser** (stored as a signed `HttpOnly` cookie per post slug).
 
 ## Frontmatter schema (v0.2)
