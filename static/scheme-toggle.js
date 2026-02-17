@@ -5,6 +5,15 @@
   const COOKIE_NAME = 'paywritr_color_scheme';
   const MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
+  const SUN_SVG = `<svg class="scheme-toggle__svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+  </svg>`;
+
+  const MOON_SVG = `<svg class="scheme-toggle__svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M21 14.3A8.4 8.4 0 0 1 9.7 3a7.6 7.6 0 1 0 11.3 11.3Z"/>
+  </svg>`;
+
   function currentScheme() {
     const v = String(document.documentElement.getAttribute('data-color-scheme') || '').toLowerCase();
     return v === 'dark' ? 'dark' : 'light';
@@ -20,8 +29,10 @@
 
   function render() {
     const v = currentScheme();
-    btn.textContent = v === 'dark' ? 'Dark' : 'Light';
-    btn.setAttribute('aria-pressed', v === 'dark' ? 'true' : 'false');
+    const next = v === 'dark' ? 'light' : 'dark';
+
+    btn.innerHTML = v === 'dark' ? SUN_SVG : MOON_SVG;
+    btn.setAttribute('aria-label', next === 'dark' ? 'Switch to dark mode' : 'Switch to light mode');
   }
 
   btn.addEventListener('click', () => {
