@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { marked } from 'marked';
+import fs from 'node:fs/promises';
 
 import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
 import { scanContent, findCanonical, ContentValidationError } from './lib/content.js';
@@ -14,6 +15,9 @@ const SITE_TITLE = process.env.SITE_TITLE || 'PayBlog';
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const PAYMENTS_PROVIDER = parsePaymentsProvider(process.env);
+
+const THEME = (process.env.THEME || 'classic').trim();
+const THEMES_DIR = path.join(process.cwd(), 'themes');
 
 const APP_SECRET = process.env.APP_SECRET || '';
 const UNLOCK_DAYS = Number(process.env.UNLOCK_DAYS || 30);
@@ -32,6 +36,7 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
 app.use('/static', express.static(path.join(process.cwd(), 'static'), { fallthrough: false }));
+app.use('/themes', express.static(THEMES_DIR, { fallthrough: false }));
 
 function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -145,6 +150,37 @@ async function listPosts() {
     }));
 }
 
+async function listPages() {
+  const { pages } = await scanContent();
+  // Drafts excluded.
+  return pages
+    .filter((p) => !p.draft)
+    .slice()
+    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')))
+    .map((p) => ({
+      slug: p.slug,
+      title: p.title,
+    }));
+}
+
+async function resolveThemeCssHref() {
+  // Any subdirectory in /themes is a valid theme; THEME selects the active one.
+  // Folder name is the canonical identifier.
+  const candidates = [THEME, 'classic'];
+  for (const t of candidates) {
+    if (!t) continue;
+    const rel = path.posix.join('/themes', encodeURIComponent(t), 'theme.css');
+    const abs = path.join(THEMES_DIR, t, 'theme.css');
+    try {
+      await fs.stat(abs);
+      return rel;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 async function resolveContent({ type, slug, allowAlias = false }) {
   assertValidSlug(slug);
 
@@ -232,7 +268,15 @@ function escapeHtml(s) {
     .replaceAll("'", '&#39;');
 }
 
-function layout({ title, content, extraHead = '', extraBody = '' }) {
+async function layout({ title, content, extraHead = '', extraBody = '' }) {
+  const themeHref = await resolveThemeCssHref();
+  const pages = await listPages();
+  const nav = pages.length
+    ? `<nav class="site-nav" aria-label="Pages">${pages
+        .map((p) => `<a class="nav-link" href="/${encodeURIComponent(p.slug)}/">${escapeHtml(p.title)}</a>`)
+        .join('')}</nav>`
+    : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -240,12 +284,16 @@ function layout({ title, content, extraHead = '', extraBody = '' }) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)} — ${escapeHtml(SITE_TITLE)}</title>
   <link rel="stylesheet" href="/static/style.css" />
+  ${themeHref ? `<link rel="stylesheet" href="${themeHref}" />` : ''}
   ${extraHead}
 </head>
 <body>
   <header class="site-header">
     <div class="container">
-      <a class="brand" href="/">${escapeHtml(SITE_TITLE)}</a>
+      <div class="site-header-row">
+        <a class="brand" href="/">${escapeHtml(SITE_TITLE)}</a>
+      </div>
+      ${nav}
     </div>
   </header>
 
@@ -280,7 +328,7 @@ app.get(
       .join('\n');
 
     res.type('html').send(
-      layout({
+      await layout({
         title: 'Home',
         content: `
       <section class="hero">
@@ -373,14 +421,14 @@ app.get(
     } catch (e) {
       if (e instanceof ContentValidationError) {
         res.status(500).type('html').send(
-          layout({
+          await layout({
             title: 'Content error',
             content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
           })
         );
         return;
       }
-      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
       return;
     }
 
@@ -409,7 +457,7 @@ app.get(
     const slug = resolved.canonicalSlug;
 
     res.type('html').send(
-      layout({
+      await layout({
         title: post.title,
         content: renderPostHtml({ post, slug, req }),
         extraBody: `<script src="/static/qrcode.min.js"></script><script src="/static/pay.js"></script>`,
@@ -533,7 +581,7 @@ app.get(
     // Avoid route collisions with known prefixes.
     const reserved = new Set(['p', 'post', 'api', 'static', 'healthz', 'readyz']);
     if (reserved.has(String(slug || '').toLowerCase())) {
-      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
       return;
     }
 
@@ -543,14 +591,14 @@ app.get(
     } catch (e) {
       if (e instanceof ContentValidationError) {
         res.status(500).type('html').send(
-          layout({
+          await layout({
             title: 'Content error',
             content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
           })
         );
         return;
       }
-      res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
+      res.status(404).type('html').send(await layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
       return;
     }
 
@@ -562,7 +610,7 @@ app.get(
     const page = resolved.page;
 
     res.type('html').send(
-      layout({
+      await layout({
         title: page.title,
         content: renderPageHtml({ page }),
       })
@@ -572,7 +620,7 @@ app.get(
 
 // Basic error handler to avoid unhandled promise rejections leaking stack traces.
 // (Express 5 will route async errors here.)
-app.use((err, req, res, next) => {
+app.use(async (err, req, res, next) => {
   const status = Number(err?.statusCode || err?.status || 500);
   const msg = status >= 500 ? 'internal error' : String(err?.message || 'error');
 
@@ -581,7 +629,7 @@ app.use((err, req, res, next) => {
     return;
   }
 
-  res.status(status).type('html').send(layout({ title: 'Error', content: `<h1>${escapeHtml(msg)}</h1>` }));
+  res.status(status).type('html').send(await layout({ title: 'Error', content: `<h1>${escapeHtml(msg)}</h1>` }));
 });
 
 app.listen(PORT, () => {

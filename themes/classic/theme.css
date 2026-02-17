@@ -1,0 +1,30 @@
+/* Paywritr theme: classic
+   Identifier is the directory name: themes/classic/
+
+   This file defines token values for both schemes.
+   Component/layout rules live in /static/style.css.
+*/
+
+:root{
+  --color-bg:#fff;
+  --color-surface:#fff;
+  --color-surface-2:#fafafa;
+  --color-text:#111;
+  --color-muted:#666;
+  --color-border:#e9e9e9;
+  --color-accent:#111;
+  --color-accent-contrast:#fff;
+
+  --content-max-width:720px;
+}
+
+[data-color-scheme="dark"]{
+  --color-bg:#0f0f10;
+  --color-surface:#171719;
+  --color-surface-2:#1e1e21;
+  --color-text:#f2f2f0;
+  --color-muted:#a5a19a;
+  --color-border:rgba(242,242,240,0.12);
+  --color-accent:#f2f2f0;
+  --color-accent-contrast:#0f0f10;
+}

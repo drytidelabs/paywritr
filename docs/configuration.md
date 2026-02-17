@@ -21,6 +21,14 @@ Paywritr is configured via environment variables.
 
 v0.2 currently ships with **Alby Hub only**.
 
+## Theme selection
+
+Themes live in the `themes/` folder. Any subdirectory under `themes/` is considered an available theme.
+
+Select the active theme by setting:
+
+- `THEME=classic` (default)
+
 - `PAYMENTS_PROVIDER=alby_hub`
 - `ALBY_HUB_URL`
   - A `nostr+walletconnect://...` URI that includes a secret.
