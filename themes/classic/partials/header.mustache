@@ -4,12 +4,11 @@
       <a class="brand" href="/">{{site.title}}</a>
       {{{global.scheme_toggle_html}}}
     </div>
-    {{#nav.pages.length}}
+
     <nav class="site-nav" aria-label="Pages">
       {{#nav.pages}}
         <a class="nav-link" href="/{{slug}}/">{{title}}</a>
       {{/nav.pages}}
     </nav>
-    {{/nav.pages.length}}
   </div>
 </header>

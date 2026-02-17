@@ -421,7 +421,12 @@ app.get(
         },
         home: {
           posts: posts.map((p) => ({
-            ...p,
+            type: 'post',
+            slug: p.slug,
+            title: p.title,
+            published_date: p.date,
+            summary: p.description,
+            price_sats: p.price_sats,
             price_label: p.price_sats > 0 ? `${p.price_sats} sats` : 'free',
           })),
         },
