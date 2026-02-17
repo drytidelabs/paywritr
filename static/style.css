@@ -1,10 +1,55 @@
 :root{
-  --bg:#fff;
-  --fg:#111;
-  --muted:#666;
-  --border:#e9e9e9;
-  --max:720px;
+  /* ---- Design tokens (semantic) ---- */
+  --color-bg:#fff;
+  --color-surface:#fff;
+  --color-surface-2:#fafafa;
+  --color-text:#111;
+  --color-muted:#666;
+  --color-border:#e9e9e9;
+  --color-accent:#111;
+  --color-accent-contrast:#fff;
+
+  --font-body:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  --font-size-base:16px;
+  --line-height-base:1.7;
+
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-5:20px;
+  --space-6:24px;
+  --space-7:32px;
+  --space-8:48px;
+
+  --radius-1:8px;
+  --radius-2:10px;
+  --radius-3:14px;
+  --radius-4:999px;
+
+  --content-max-width:720px;
+
+  /* ---- Back-compat aliases (will be removed after #68 refactor) ---- */
+  --bg:var(--color-bg);
+  --fg:var(--color-text);
+  --muted:var(--color-muted);
+  --border:var(--color-border);
+  --max:var(--content-max-width);
 }
+
+/* Optional future scheme overrides (enabled once [data-color-scheme] is applied) */
+[data-color-scheme="dark"]{
+  --color-bg:#0f0f10;
+  --color-surface:#171719;
+  --color-surface-2:#1e1e21;
+  --color-text:#f2f2f0;
+  --color-muted:#a5a19a;
+  --color-border:rgba(242,242,240,0.12);
+  --color-accent:#f2f2f0;
+  --color-accent-contrast:#0f0f10;
+}
+
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
