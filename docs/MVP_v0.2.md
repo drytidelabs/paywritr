@@ -15,88 +15,21 @@ This document defines what a *real MVP* for Paywritr should include **beyond** t
 
 ---
 
-## Prioritized requirements (grouped)
+## Prioritized requirements (trimmed for a flat/simple MVP)
 
-### Reliability (P0 unless noted)
+This MVP intentionally avoids “systems work” (webhooks, persistence, restore tokens, provider abstraction). Anything that adds durable state or operational surface area is parked in `docs/PARKING_LOT.md`.
 
-> Note: Server-side entitlements persistence is intentionally **parked** (see `docs/PARKING_LOT.md`) to keep MVP flat.
-
-1. **(P0) Webhook/idempotency handling for payment confirmation**
-   - Safe retries; no double-unlocks; no stuck “paid but locked.”
-
-2. **(P0) Structured logging + request correlation for pay/unlock flow**
-   - Minimal logs around invoice create, payment confirm, and content serve.
-   - Add timing logs around each `lookup_invoice` call (duration + timeout vs response) to distinguish upstream latency vs our retry behavior — without adding a DB.
-
-3. **(P0) Robust upstream failure handling**
-   - Gracefully handle provider downtime/timeouts with clear user messaging + safe retry paths.
-
-4. **(P1) Diagnostics endpoints**
-   - Keep `/healthz` and optionally add `/readyz` if needed for deployments.
-
-### Admin / authoring
-1. **(P0) Canonical post metadata schema**
-   - Standardize frontmatter fields (e.g., title/date/price_sats/description, plus any MVP-needed additions like excerpt/cover).
-
-2. **(P0) Author workflow that doesn’t require touching code**
-   - Templates are fine; avoid multi-file hand edits; keep it predictable.
-
-3. **(P0) Single source of truth config**
-   - One configuration surface for site name/base URL/provider connection/env flags.
-
-4. **(P1) Draft vs published**
-   - Support drafts that are not publicly visible.
-
-5. **(P1) Minimal sales/entitlements view (publisher confidence)**
-   - A simple page or CLI output listing paid invoices/unlocks by post + timestamp.
-
-### Reader UX
-1. **(P0) Paywall landing state**
-   - Clear excerpt/value + price + what happens after paying.
-
-2. **(P0) Payment flow UI**
-   - Create invoice → QR + copy invoice → auto/poll confirmation.
-
-3. **(P0) Post-unlock confirmation**
-   - After payment confirmation, reader gets immediate access without guesswork.
-
-4. **(P0) Restore access (returning readers)**
-   - If cookies cleared/new device, provide a minimal “restore access” mechanism.
-
-5. **(P1) Accessibility + responsive paywall components**
-   - Keyboard navigation + decent mobile layout.
-
-### Security / ops
-1. **(P0) Signed entitlement token hardening**
-   - Cookie remains signed + scoped + expiring.
-
-2. **(P0) Abuse protections on invoice creation**
-   - Rate limiting / basic anti-bot to avoid being a public invoice generator.
-
-3. **(P0) Secrets management + environment separation**
-   - Clear dev vs prod behavior; never log secrets.
-
-4. **(P0) Content protection**
-   - Ensure paid content is not shipped to locked clients (no “view source” bypass).
-
-5. **(P1) Basic security headers**
-   - CSP, frame-ancestors, referrer-policy, etc. (minimal, pragmatic).
+### Reliability
+- **(P0) Structured payflow logs (lightweight)**
+  - Timing logs around each `lookup_invoice` call (duration + timeout vs response) to distinguish upstream latency vs retry behavior.
+- **(P0) Robust upstream failure handling**
+  - Provider-agnostic user messaging + safe retry paths.
 
 ### Payments
-1. **(P0) Payment provider interface (even if only one impl)**
-   - Design so additional providers can be added without rewriting product logic.
+- **(P1) Pricing rules + validation**
+  - Guardrails around `price_sats` and invalid frontmatter.
 
-2. **(P0) Invoice mapping + reconciliation**
-   - Store: invoice id/hash, post slug, amount, status, created_at, settled_at.
-
-3. **(P0) Confirmation method**
-   - Webhook-first with polling fallback.
-
-4. **(P0) Receipt / restore token**
-   - Provide user-visible receipt/code/link to restore access on another device.
-
-5. **(P1) Pricing rules + validation**
-   - Min/max sats, prevent invalid pricing, handle free posts cleanly.
+(Everything else from the larger v0.2 list is parked to keep the project flat.)
 
 ---
 
