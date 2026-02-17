@@ -55,46 +55,56 @@ npm run dev
 
 Open <http://localhost:3000>.
 
-## Run with Docker
+## Deploy / Run with Docker Compose
+
+Recommended for local deploys and servers.
+
+1) Create a local `.env` (never commit it):
 
 ```bash
-# Alby Hub (default / recommended)
-export PAYMENTS_PROVIDER='alby_hub'
-export APP_SECRET='your-long-random-secret'
-export ALBY_HUB_URL='nostr+walletconnect://...'
+cp .env.example .env
+```
 
-docker compose up --build
+2) Edit `.env` and set at minimum:
+- `APP_SECRET`
+- `PAYMENTS_PROVIDER=alby_hub`
+- `ALBY_HUB_URL`
 
-# LNbits (optional)
-export PAYMENTS_PROVIDER='lnbits'
-export APP_SECRET='your-long-random-secret'
-export LNBITS_URL='https://your-lnbits-host'
-export LNBITS_INVOICE_KEY='...'
-export LNBITS_READ_KEY='...'
+3) Run:
 
+```bash
 docker compose up --build
 ```
 
-## Writing posts
+Open <http://localhost:3000>.
 
-Posts live in `content/posts/*.md`.
+## Writing content
 
-### Quick start
+Content lives in `content/posts/*.md`.
+
+### Templates
 
 Copy a template:
-
 - `templates/post.free.md`
 - `templates/post.paywalled.md`
+- `templates/page.md`
 
-Then save it as `content/posts/<slug>.md` (the slug is the filename).
+Filename can be anything; the canonical URL slug is in frontmatter.
 
-### Frontmatter (v0.1)
+### Frontmatter (v0.2)
 
-Supported keys:
+Minimal canonical schema:
+- `type` (`post` | `page`)
 - `title`
-- `date`
-- `price_sats` (paywalled when `> 0`)
-- `description` (optional)
+- `slug`
+- `published_date`
+- `draft` (`true` = not published)
+- `price_sats` (`type: page` must be `0`)
+- `summary` (optional)
+- `aliases` (optional)
+- `topics` (optional)
+
+More details + examples: **[`docs/authoring.md`](docs/authoring.md)**.
 
 Example:
 

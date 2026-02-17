@@ -7,23 +7,33 @@ Paywritr is a flat-file Markdown blog.
 - A post is **paywalled** when `price_sats > 0`.
 - **Unlocks are per device/browser** (stored as a signed `HttpOnly` cookie per post slug).
 
-## Frontmatter schema (v0.1)
+## Frontmatter schema (v0.2)
 
-Supported keys:
+Canonical keys:
 
-- `title` (string, recommended)
-- `date` (string, optional; displayed as-is)
-- `price_sats` (number, optional; `0` or missing means free)
-- `description` (string, optional; shown on homepage)
+- `type` (`post` | `page`)
+- `title` (string)
+- `slug` (string; **URL slug**, independent of filename)
+- `published_date` (string; treated as publish date)
+- `draft` (bool; `true` = not published)
+- `price_sats` (int; for `type: page` must be `0`)
+- `summary` (string; optional)
+- `aliases` (list of old slugs; optional)
+- `topics` (list; optional)
 
 Example (free post):
 
 ```md
 ---
+type: post
 title: Hello, Paywritr
-date: 2026-02-16
+slug: hello-paywritr
+published_date: 2026-02-16
+draft: false
 price_sats: 0
-description: A free post.
+summary: A free post.
+aliases: []
+topics: []
 ---
 
 This is a free post.
@@ -33,10 +43,15 @@ Example (paywalled post):
 
 ```md
 ---
+type: post
 title: My Premium Note
-date: 2026-02-16
+slug: my-premium-note
+published_date: 2026-02-16
+draft: false
 price_sats: 500
-description: A paywalled post.
+summary: A paywalled post.
+aliases: []
+topics: []
 ---
 
 This paragraph is the teaser.
@@ -46,6 +61,24 @@ This paragraph is the teaser.
 ## Paid section
 
 This content is only shown after payment + unlock.
+```
+
+Example (page):
+
+```md
+---
+type: page
+title: About
+slug: about
+published_date: 2026-02-16
+draft: false
+price_sats: 0
+summary: Optional.
+aliases: []
+topics: []
+---
+
+This is an about page.
 ```
 
 ## Teaser / preview rules

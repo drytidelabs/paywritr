@@ -1,8 +1,13 @@
 ---
+type: post
 title: Hello, paywall
-date: 2026-02-13
+slug: hello-paywall
+published_date: 2026-02-13
+draft: false
 price_sats: 50
-description: A tiny example of a paid post.
+summary: A tiny example of a paid post.
+aliases: []
+topics: []
 ---
 
 This is the **teaser**. It’s visible to everyone.

@@ -1,12 +1,11 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import matter from 'gray-matter';
 import { marked } from 'marked';
 
 import { parsePaymentsProvider, createInvoice, checkInvoicePaid } from './lib/payments.js';
+import { scanContent, findCanonical, ContentValidationError } from './lib/content.js';
 
 const app = express();
 
@@ -16,16 +15,10 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const PAYMENTS_PROVIDER = parsePaymentsProvider(process.env);
 
-// LNbits config
-const LNBITS_URL = (process.env.LNBITS_URL || '').replace(/\/$/, '');
-const LNBITS_INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || '';
-const LNBITS_READ_KEY = process.env.LNBITS_READ_KEY || '';
-
 const APP_SECRET = process.env.APP_SECRET || '';
 const UNLOCK_DAYS = Number(process.env.UNLOCK_DAYS || 30);
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true';
 
-const POSTS_DIR = path.join(process.cwd(), 'content', 'posts');
 const VALID_SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 if (!APP_SECRET) {
@@ -44,9 +37,7 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
-function slugify(filename) {
-  return filename.replace(/\.md$/, '');
-}
+// slug comes from frontmatter (`slug`), not the filename.
 
 function assertValidSlug(slug) {
   if (!VALID_SLUG_RE.test(slug)) {
@@ -141,73 +132,55 @@ function computeFallbackTeaser(md, maxChars = 800) {
 }
 
 async function listPosts() {
-  let files;
-  try {
-    files = await fs.readdir(POSTS_DIR);
-  } catch (e) {
-    if (e && e.code === 'ENOENT') return [];
-    throw e;
-  }
-
-  const posts = [];
-  for (const f of files.filter((x) => x.endsWith('.md'))) {
-    const slug = slugify(f);
-    if (!VALID_SLUG_RE.test(slug)) continue;
-
-    const fullPath = path.join(POSTS_DIR, f);
-    let raw;
-    try {
-      raw = await fs.readFile(fullPath, 'utf8');
-    } catch {
-      continue;
-    }
-
-    let parsed;
-    try {
-      parsed = matter(raw);
-    } catch {
-      continue;
-    }
-
-    const fm = parsed.data || {};
-    posts.push({
-      slug,
-      title: fm.title || slug,
-      date: fm.date || null,
-      price_sats: Number(fm.price_sats || 0),
-      description: fm.description || '',
-    });
-  }
-  posts.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  return posts;
+  const { posts } = await scanContent();
+  // Drafts excluded.
+  return posts
+    .filter((p) => !p.draft)
+    .map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      date: p.published_date,
+      price_sats: p.price_sats,
+      description: p.summary,
+    }));
 }
 
 async function loadPost(slug) {
   assertValidSlug(slug);
-  const fullPath = path.join(POSTS_DIR, `${slug}.md`);
 
-  const raw = await fs.readFile(fullPath, 'utf8');
-  const parsed = matter(raw);
-  const fm = parsed.data || {};
-  const body = parsed.content || '';
+  const scanned = await scanContent();
+  const found = findCanonical(scanned, { type: 'post', slug });
+  if (!found) {
+    const err = new Error('not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const c = found.content;
+  if (c.draft) {
+    const err = new Error('not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const body = c.body || '';
 
   const hasMoreSplit = body.includes('<!--more-->');
   const [teaserMdRaw] = body.split('<!--more-->');
 
   // IMPORTANT: for paid posts, if the author forgets <!--more-->,
   // do NOT leak the entire post. Use a conservative fallback teaser.
-  const price_sats = Number(fm.price_sats || 0);
+  const price_sats = Number(c.price_sats || 0);
   const teaserMd = price_sats > 0 && !hasMoreSplit ? computeFallbackTeaser(body) : (teaserMdRaw || '');
 
   const teaserHtml = renderMarkdown(teaserMd);
   const fullHtml = renderMarkdown(body);
 
   return {
-    slug,
-    title: fm.title || slug,
-    date: fm.date || null,
+    slug: c.slug,
+    title: c.title,
+    date: c.published_date,
     price_sats,
-    description: fm.description || '',
+    description: c.summary || '',
     teaserHtml,
     fullHtml,
     hasMoreSplit,
@@ -292,7 +265,16 @@ app.get(
     let post;
     try {
       post = await loadPost(slug);
-    } catch {
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        res.status(500).type('html').send(
+          layout({
+            title: 'Content error',
+            content: `<h1>Content error</h1><p class="muted">${escapeHtml(e.message)}</p>`,
+          })
+        );
+        return;
+      }
       res.status(404).type('html').send(layout({ title: 'Not found', content: '<h1>Not found</h1>' }));
       return;
     }
@@ -365,7 +347,10 @@ app.get(
     let post;
     try {
       post = await loadPost(slug);
-    } catch {
+    } catch (e) {
+      if (e instanceof ContentValidationError) {
+        return res.status(500).json({ error: 'content error', detail: e.message });
+      }
       return res.status(404).json({ error: 'unknown post' });
     }
 
@@ -430,7 +415,10 @@ app.get(
       // ensure slug in state is valid & corresponds to a real post
       try {
         await loadPost(slug);
-      } catch {
+      } catch (e) {
+        if (e instanceof ContentValidationError) {
+          return res.status(500).json({ error: 'content error', detail: e.message });
+        }
         return res.status(400).json({ error: 'unknown post for state' });
       }
 
