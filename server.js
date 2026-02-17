@@ -300,8 +300,10 @@ function schemeHeadScriptHtml() {
 }
 
 function schemeToggleHtml() {
-  // NOTE: icon-only toggle is tracked in #100; this is the current working implementation.
-  return `<button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Toggle light/dark mode" aria-pressed="false">Light</button>`;
+  // Icon-only light/dark toggle (#100). JS swaps the SVG + aria-label at runtime.
+  // Initial render assumes light scheme; the early head script may flip scheme before JS runs.
+  const moonSvg = `<svg class="scheme-toggle__svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 14.3A8.4 8.4 0 0 1 9.7 3a7.6 7.6 0 1 0 11.3 11.3Z"/></svg>`;
+  return `<button id="schemeToggle" class="scheme-toggle" type="button" aria-label="Switch to dark mode">${moonSvg}</button>`;
 }
 
 async function renderWithTheme({ kind, view }) {
