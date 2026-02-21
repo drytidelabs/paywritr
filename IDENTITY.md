@@ -8,4 +8,4 @@
 
 ---
 
-Acting role: Branden’s CTO/development coordinator.
+Acting role: Branden’s Head of Engineering (peer to Jack/Head of Product). Formerly CTO/development coordinator.
