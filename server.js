@@ -13,6 +13,22 @@ import { renderMustache } from './lib/template_renderer.js';
 import { buildThemeContext } from './lib/theme_context.js';
 import { loadThemePartials, resolveTemplate, loadThemeTemplate } from './lib/theme_templates.js';
 
+// --- Date formatting ---
+function formatBritishDate(isoDate) {
+  if (!isoDate) return null;
+  try {
+    const date = new Date(isoDate);
+    // Format: 21 February 2026
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch (e) {
+    return isoDate; // Fallback to original if parsing fails
+  }
+}
+
 // --- Structured payflow logging (#37) ---
 function correlationId() {
   return crypto.randomBytes(8).toString('hex');
@@ -481,7 +497,7 @@ app.get(
             type: 'post',
             slug: p.slug,
             title: p.title,
-            published_date: p.date,
+            published_date: formatBritishDate(p.date),
             summary: p.description,
             price_sats: p.price_sats,
             price_label: p.price_sats > 0 ? `${p.price_sats} sats` : 'free',
@@ -502,7 +518,7 @@ app.get(
         const price = p.price_sats > 0 ? `${p.price_sats} sats` : 'free';
         return `<article class="post-card">
       <h2><a href="/p/${encodeURIComponent(p.slug)}/">${escapeHtml(p.title)}</a></h2>
-      <div class="meta">${p.date ? escapeHtml(p.date) : ''}${p.date ? ' · ' : ''}${escapeHtml(price)}</div>
+      <div class="meta">${p.date ? escapeHtml(formatBritishDate(p.date)) : ''}${p.date ? ' · ' : ''}${escapeHtml(price)}</div>
       ${p.description ? `<p class="desc">${escapeHtml(p.description)}</p>` : ''}
     </article>`;
       })
@@ -571,7 +587,7 @@ function renderPostHtml({ post, slug, req }) {
   return `
     <article class="post">
       <h1>${escapeHtml(post.title)}</h1>
-      <div class="meta">${post.date ? escapeHtml(post.date) : ''}${post.date ? ' · ' : ''}${escapeHtml(priceLine)}</div>
+      <div class="meta">${post.date ? escapeHtml(formatBritishDate(post.date)) : ''}${post.date ? ' · ' : ''}${escapeHtml(priceLine)}</div>
       <section class="content">
         ${unlocked ? post.fullHtml : post.teaserHtml}
       </section>
@@ -584,7 +600,7 @@ function renderPageHtml({ page }) {
   return `
     <article class="post">
       <h1>${escapeHtml(page.title)}</h1>
-      <div class="meta">${page.date ? escapeHtml(page.date) : ''}</div>
+      <div class="meta">${page.date ? escapeHtml(formatBritishDate(page.date)) : ''}</div>
       <section class="content">${page.fullHtml}</section>
     </article>
   `;
@@ -682,7 +698,7 @@ app.get(
           type: 'post',
           slug,
           title: post.title,
-          published_date: post.date,
+          published_date: formatBritishDate(post.date),
           summary: post.description,
           price_sats: post.price_sats,
           price_label: priceLabel,
@@ -910,7 +926,7 @@ app.get(
           type: 'page',
           slug: page.slug,
           title: page.title,
-          published_date: page.date,
+          published_date: formatBritishDate(page.date),
           summary: page.description,
           price_sats: page.price_sats,
           price_label: 'free',
