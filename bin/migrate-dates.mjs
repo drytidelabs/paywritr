@@ -23,7 +23,13 @@ const write = process.argv.includes('--write');
 const args = process.argv.slice(2).filter(a => a !== '--write');
 const contentDir = path.resolve(args[0] ?? path.join(process.cwd(), 'content'));
 
-const UNQUOTED_DATE_RE = /^(\s*)(date|published_date)(\s*:\s*)(\d{4}-\d{2}-\d{2})\s*$/;
+// Matches:
+// - published_date: 2026-02-13
+// - published_date: "2026-02-13"
+// - date: 2026-02-13
+// - date: "2026-02-13"
+// Captures optional quote so we can preserve already-quoted published_date.
+const DATE_LINE_RE = /^(\s*)(date|published_date)(\s*:\s*)("?)(\d{4}-\d{2}-\d{2})("?)\s*$/;
 
 /**
  * Transform the raw text of a markdown file.
@@ -52,12 +58,16 @@ function transform(raw, filePath) {
 
   for (let i = 1; i < fmEnd; i++) {
     const line = lines[i];
-    const m = line.match(UNQUOTED_DATE_RE);
+    const m = line.match(DATE_LINE_RE);
     if (!m) continue;
 
-    const [, indent, key, sep, dateVal] = m;
+    const [, indent, key, sep, q1, dateVal, q2] = m;
+
+    // Always canonicalize to published_date, and ensure date-only values are double-quoted.
+    // Keep the separator spacing as-is for minimal diffs.
     const newLine = `${indent}published_date${sep}"${dateVal}"`;
 
+    // If it was already published_date and already quoted, this is a no-op.
     if (newLine !== line) {
       changes.push(`  line ${i + 1}: ${JSON.stringify(line)} → ${JSON.stringify(newLine)}`);
       out[i] = newLine;

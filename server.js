@@ -163,6 +163,50 @@ async function listPosts() {
     }));
 }
 
+// Minimal date display formatting (kept local to server; templates expect *display* fields)
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+
+function formatDateOnly(ymd) {
+  const m = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!y || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${d} ${MONTHS[mo - 1]} ${y}`;
+}
+
+function formatDateTime(dt, { timezone = 'UTC' } = {}) {
+  const date = new Date(dt);
+  if (isNaN(date.getTime())) return null;
+
+  const datePart = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+
+  const timePart = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+
+  return `${datePart} · ${timePart}`;
+}
+
+function formatPublishedDate(published_date, { timezone = 'UTC' } = {}) {
+  if (!published_date) return null;
+  const s = String(published_date).trim();
+  if (!s) return null;
+  return formatDateOnly(s) || formatDateTime(s, { timezone }) || s;
+}
+
 async function listPages() {
   const { pages } = await scanContent();
   // Drafts excluded.
@@ -482,6 +526,7 @@ app.get(
             slug: p.slug,
             title: p.title,
             published_date: p.date,
+            published_date_display: formatPublishedDate(p.date, { timezone: site.timezone }),
             summary: p.description,
             price_sats: p.price_sats,
             price_label: p.price_sats > 0 ? `${p.price_sats} sats` : 'free',
@@ -683,6 +728,7 @@ app.get(
           slug,
           title: post.title,
           published_date: post.date,
+          published_date_display: formatPublishedDate(post.date, { timezone: site.timezone }),
           summary: post.description,
           price_sats: post.price_sats,
           price_label: priceLabel,
@@ -911,6 +957,7 @@ app.get(
           slug: page.slug,
           title: page.title,
           published_date: page.date,
+          published_date_display: formatPublishedDate(page.date, { timezone: site.timezone }),
           summary: page.description,
           price_sats: page.price_sats,
           price_label: 'free',
