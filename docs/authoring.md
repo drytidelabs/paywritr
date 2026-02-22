@@ -19,6 +19,9 @@ Canonical keys:
 - `title` (string)
 - `slug` (string; **URL slug**, independent of filename)
 - `published_date` (string; treated as publish date)
+  - canonical form: quoted string
+  - for posts/pages: `"YYYY-MM-DD"`
+  - for datetime content (future Notes): require timezone (e.g. `"2026-02-13T17:30:00Z"`)
 - `draft` (bool; `true` = not published)
 - `price_sats` (int; for `type: page` must be `0`)
 - `summary` (string; optional)
@@ -32,7 +35,7 @@ Example (free post):
 type: post
 title: Hello, Paywritr
 slug: hello-paywritr
-published_date: 2026-02-16
+published_date: "2026-02-16"
 draft: false
 price_sats: 0
 summary: A free post.
@@ -50,7 +53,7 @@ Example (paywalled post):
 type: post
 title: My Premium Note
 slug: my-premium-note
-published_date: 2026-02-16
+published_date: "2026-02-16"
 draft: false
 price_sats: 500
 summary: A paywalled post.
@@ -74,7 +77,7 @@ Example (page):
 type: page
 title: About
 slug: about
-published_date: 2026-02-16
+published_date: "2026-02-16"
 draft: false
 price_sats: 0
 summary: Optional.
