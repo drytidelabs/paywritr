@@ -2,7 +2,7 @@
 type: page
 title: About
 slug: about
-published_date: 2026-02-17
+published_date: "2026-02-17"
 draft: false
 price_sats: 0
 summary: A placeholder About page for Paywritr.

@@ -7,7 +7,7 @@
   {{#home.posts}}
     <article class="post-card">
       <h2><a href="/p/{{slug}}/">{{title}}</a></h2>
-      <div class="meta">{{#published_date}}{{published_date}} · {{/published_date}}{{price_label}}</div>
+      <div class="meta">{{#published_date_display}}{{published_date_display}} · {{/published_date_display}}{{price_label}}</div>
       {{#summary}}<p class="desc">{{summary}}</p>{{/summary}}
     </article>
   {{/home.posts}}

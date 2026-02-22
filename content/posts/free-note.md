@@ -2,7 +2,7 @@
 type: post
 title: Free note
 slug: free-note
-published_date: 2026-02-12
+published_date: "2026-02-12"
 draft: false
 price_sats: 0
 summary: A free post (no paywall).
