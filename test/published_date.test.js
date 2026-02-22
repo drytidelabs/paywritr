@@ -105,6 +105,34 @@ describe('published_date normalization (#124)', () => {
     });
   });
 
+  it('rejects naive datetime (no timezone) to avoid server-local timezone bugs', async () => {
+    await withTempContent('_test-dt-naive.md', [
+      'title: Test',
+      'slug: test-dt-naive',
+      'type: post',
+      'published_date: "2026-02-13T12:30:00"',
+    ], 'Hello', async (scanContent) => {
+      await assert.rejects(() => scanContent(), (err) => {
+        assert.ok(String(err.message || '').includes('must include timezone'));
+        return true;
+      });
+    });
+  });
+
+  it('accepts timezone-aware datetime (Z) and preserves the string', async () => {
+    await withTempContent('_test-dt-z.md', [
+      'title: Test',
+      'slug: test-dt-z',
+      'type: post',
+      'published_date: "2026-02-13T17:30:00Z"',
+    ], 'Hello', async (scanContent) => {
+      const { posts } = await scanContent();
+      const p = posts.find(x => x.slug === 'test-dt-z');
+      assert.ok(p);
+      assert.equal(p.published_date, '2026-02-13T17:30:00Z');
+    });
+  });
+
   it('posts sort descending by published_date (string compare)', async () => {
     const files = [
       ['_test-sort-a.md', '2026-01-01', 'test-sort-a'],
