@@ -164,6 +164,7 @@ Templates receive a single **view object**. The most important top-level keys ar
 - `site.title`
 - `site.tagline`
 - `site.description`
+- `site.timezone` (IANA timezone name; e.g. `America/New_York`)
 
 ### `theme.*`
 

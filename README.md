@@ -111,7 +111,7 @@ Example:
 ```md
 ---
 title: My post
-date: 2026-02-13
+published_date: "2026-02-13"
 price_sats: 123
 description: Optional short description for the homepage.
 ---
