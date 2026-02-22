@@ -4,3 +4,5 @@
 title: "Paywritr"
 tagline: "Minimal writing. Pay per post with Lightning."
 description: "Hyper-minimal Markdown blog with per-post Lightning paygating."
+
+timezone: "UTC"
