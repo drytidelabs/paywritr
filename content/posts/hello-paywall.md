@@ -2,7 +2,7 @@
 type: post
 title: Hello, paywall
 slug: hello-paywall
-published_date: 2026-02-13
+published_date: "2026-02-13"
 draft: false
 price_sats: 50
 summary: A tiny example of a paid post.
