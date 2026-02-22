@@ -1,6 +1,6 @@
 (function () {
-  const btn = document.getElementById('schemeToggle');
-  if (!btn) return;
+  const btns = Array.from(document.querySelectorAll('.scheme-toggle'));
+  if (!btns.length) return;
 
   const COOKIE_NAME = 'paywritr_color_scheme';
   const MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
@@ -31,15 +31,19 @@
     const v = currentScheme();
     const next = v === 'dark' ? 'light' : 'dark';
 
-    btn.innerHTML = v === 'dark' ? SUN_SVG : MOON_SVG;
-    btn.setAttribute('aria-label', next === 'dark' ? 'Switch to dark mode' : 'Switch to light mode');
+    for (const btn of btns) {
+      btn.innerHTML = v === 'dark' ? SUN_SVG : MOON_SVG;
+      btn.setAttribute('aria-label', next === 'dark' ? 'Switch to dark mode' : 'Switch to light mode');
+    }
   }
 
-  btn.addEventListener('click', () => {
-    const next = currentScheme() === 'dark' ? 'light' : 'dark';
-    setScheme(next);
-    render();
-  });
+  for (const btn of btns) {
+    btn.addEventListener('click', () => {
+      const next = currentScheme() === 'dark' ? 'light' : 'dark';
+      setScheme(next);
+      render();
+    });
+  }
 
   // Initial render based on the scheme chosen by the early head script (#72/#73).
   render();
