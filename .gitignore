@@ -8,3 +8,6 @@ node_modules/
 *.key
 secrets*
 *secret*
+
+# user config (kept local)
+site.yml
