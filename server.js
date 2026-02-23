@@ -29,7 +29,6 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const PAYMENTS_PROVIDER = parsePaymentsProvider(process.env);
 
-const THEME = (process.env.THEME || 'classic').trim();
 const THEMES_DIR = path.join(process.cwd(), 'themes');
 
 const APP_SECRET = process.env.APP_SECRET || '';
@@ -43,6 +42,20 @@ if (!APP_SECRET) {
 }
 if (!Number.isFinite(UNLOCK_DAYS) || UNLOCK_DAYS <= 0) {
   console.warn('[payblog] WARNING: UNLOCK_DAYS is invalid; defaulting to 30.');
+}
+
+// Deprecation warning for THEME env var (#136)
+if (process.env.THEME) {
+  console.warn('[payblog] WARNING: THEME env var is deprecated. Please set "theme" in site.yml instead.');
+}
+
+async function getActiveTheme() {
+  // If THEME env var is still set, respect it for backward compatibility (but warn).
+  if (process.env.THEME) {
+    return process.env.THEME.trim();
+  }
+  const meta = await loadSiteMeta();
+  return meta.theme || 'classic';
 }
 
 app.set('trust proxy', 1);
@@ -221,9 +234,10 @@ async function listPages() {
 }
 
 async function resolveThemeCssHref() {
-  // Any subdirectory in /themes is a valid theme; THEME selects the active one.
+  const theme = await getActiveTheme();
+  // Any subdirectory in /themes is a valid theme; theme selects the active one.
   // Folder name is the canonical identifier.
-  const candidates = [THEME, 'classic'];
+  const candidates = [theme, 'classic'];
   for (const t of candidates) {
     if (!t) continue;
     const rel = path.posix.join('/themes', encodeURIComponent(t), 'theme.css');
@@ -363,12 +377,14 @@ function schemeToggleHtml() {
 async function renderWithTheme({ kind, view }) {
   // kind: home|post|page|content|...
   // If the theme doesn't provide templates yet, return null (caller uses legacy render).
-  const layoutTpl = await loadThemeTemplate({ themeName: THEME, templateName: 'layout' });
+  const theme = await getActiveTheme();
+
+  const layoutTpl = await loadThemeTemplate({ themeName: theme, templateName: 'layout' });
   if (!layoutTpl) return null;
 
-  const partials = await loadThemePartials({ themeName: THEME });
+  const partials = await loadThemePartials({ themeName: theme });
 
-  const resolved = await resolveTemplate({ themeName: THEME, kind });
+  const resolved = await resolveTemplate({ themeName: theme, kind });
   const bodyTpl = resolved?.template;
 
   // Built-in safe fallback body template (no errors)
@@ -392,10 +408,11 @@ async function renderWithTheme({ kind, view }) {
 }
 
 async function renderStatusPage({ req, res, status = 200, kind, title, contentHtml, extraBody = '' }) {
+  const theme = await getActiveTheme();
   const [site, themeCssHref, baseCtx] = await Promise.all([
     loadSiteMeta(),
     resolveThemeCssHref(),
-    buildThemeContext({ themeName: THEME }),
+    buildThemeContext({ themeName: theme }),
   ]);
 
   const themed = await renderWithTheme({
@@ -437,11 +454,12 @@ async function renderStatusPage({ req, res, status = 200, kind, title, contentHt
 }
 
 async function layout({ title, content, extraHead = '', extraBody = '' }) {
+  const theme = await getActiveTheme();
   const [themeHref, pages, site, themeMeta] = await Promise.all([
     resolveThemeCssHref(),
     listPages(),
     loadSiteMeta(),
-    loadThemeMeta({ themeName: THEME }),
+    loadThemeMeta({ themeName: theme }),
   ]);
 
   const nav = pages.length
@@ -496,11 +514,12 @@ async function layout({ title, content, extraHead = '', extraBody = '' }) {
 app.get(
   '/',
   asyncHandler(async (req, res) => {
+    const theme = await getActiveTheme();
     const [posts, site, themeCssHref, baseCtx] = await Promise.all([
       listPosts(),
       loadSiteMeta(),
       resolveThemeCssHref(),
-      buildThemeContext({ themeName: THEME }),
+      buildThemeContext({ themeName: theme }),
     ]);
 
     // Attempt theme template render
@@ -697,10 +716,11 @@ app.get(
     const post = resolved.post;
     const slug = resolved.canonicalSlug;
 
+    const theme = await getActiveTheme();
     const [site, themeCssHref, baseCtx] = await Promise.all([
       loadSiteMeta(),
       resolveThemeCssHref(),
-      buildThemeContext({ themeName: THEME }),
+      buildThemeContext({ themeName: theme }),
     ]);
 
     const unlocked = post.price_sats <= 0 || hasValidUnlock(req, slug);
@@ -930,10 +950,11 @@ app.get(
 
     const page = resolved.page;
 
+    const theme = await getActiveTheme();
     const [site, themeCssHref, baseCtx] = await Promise.all([
       loadSiteMeta(),
       resolveThemeCssHref(),
-      buildThemeContext({ themeName: THEME }),
+      buildThemeContext({ themeName: theme }),
     ]);
 
     const themed = await renderWithTheme({
