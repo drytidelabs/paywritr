@@ -49,13 +49,63 @@ if (process.env.THEME) {
   console.warn('[payblog] WARNING: THEME env var is deprecated. Please set "theme" in site.yml instead.');
 }
 
+async function listAvailableThemes() {
+  try {
+    const entries = await fs.readdir(THEMES_DIR, { withFileTypes: true });
+    return entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter(Boolean)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+async function themeCssExists(themeName) {
+  if (!themeName) return false;
+  const abs = path.join(THEMES_DIR, themeName, 'theme.css');
+  try {
+    await fs.stat(abs);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+let _themeValidated = false;
+
 async function getActiveTheme() {
   // If THEME env var is still set, respect it for backward compatibility (but warn).
   if (process.env.THEME) {
     return process.env.THEME.trim();
   }
+
   const meta = await loadSiteMeta();
-  return meta.theme || 'classic';
+  const requested = (meta.theme || '').trim();
+
+  // missing theme => default classic + warning
+  if (!requested) {
+    console.warn('[payblog] WARNING: site.yml missing theme; defaulting to classic.');
+    return 'classic';
+  }
+
+  // theme present but invalid => fail fast with clear error listing available themes
+  if (!_themeValidated) {
+    const ok = await themeCssExists(requested);
+    if (!ok) {
+      const available = await listAvailableThemes();
+      const err = new Error(
+        `Invalid theme in site.yml: "${requested}". Available themes: ${available.length ? available.join(', ') : '(none found)'}`
+      );
+      err.statusCode = 500;
+      err.expose = true;
+      throw err;
+    }
+    _themeValidated = true;
+  }
+
+  return requested;
 }
 
 app.set('trust proxy', 1);
@@ -1021,7 +1071,8 @@ app.use(
 // (Express 5 will route async errors here.)
 app.use(async (err, req, res, next) => {
   const status = Number(err?.statusCode || err?.status || 500);
-  const msg = status >= 500 ? 'internal error' : String(err?.message || 'error');
+  const expose = Boolean(err?.expose);
+  const msg = status >= 500 && !expose ? 'internal error' : String(err?.message || 'error');
 
   if (req.path.startsWith('/api/')) {
     res.status(status).json({ error: msg });
