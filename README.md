@@ -20,7 +20,20 @@ For provider details (including msats vs sats): see **[`docs/PAYMENTS.md`](docs/
 
 ## Configure
 
-Copy env example and set values:
+Paywritr is configured via:
+- `site.yml` (non-secret site metadata)
+- `.env` / environment variables (runtime + secrets)
+
+1) Create `site.yml`:
+
+```bash
+cp site.yml.example site.yml
+```
+
+Keys in `site.yml`:
+- `title`, `tagline`, `description`, `timezone`
+
+2) Create `.env`:
 
 ```bash
 cp .env.example .env
@@ -32,6 +45,8 @@ Set at minimum:
 Then pick a provider:
 - **Alby Hub (default):** `PAYMENTS_PROVIDER=alby_hub` + `ALBY_HUB_URL`
 - **LNbits (optional):** `PAYMENTS_PROVIDER=lnbits` + `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
+
+See `docs/configuration.md` for the complete config reference.
 
 ## Run locally
 
@@ -91,7 +106,7 @@ Copy a template:
 
 Filename can be anything; the canonical URL slug is in frontmatter.
 
-### Frontmatter (v0.2)
+### Frontmatter (v0.1)
 
 Minimal canonical schema:
 - `type` (`post` | `page`)
@@ -110,10 +125,12 @@ Example:
 
 ```md
 ---
+type: post
 title: My post
+slug: my-post
 published_date: "2026-02-13"
 price_sats: 123
-description: Optional short description for the homepage.
+summary: Optional short description for the homepage.
 ---
 
 This is the teaser.
