@@ -46,7 +46,7 @@ Legacy (not recommended):
 
 ## Payments provider
 
-Paywritr supports **Alby Hub (NWC)** and **LNbits**. See `docs/PAYMENTS.md` for full details.
+Paywritr supports **Alby Hub (NWC)** and **LNbits**. See `docs/payments.md` for full details.
 
 ## Theme selection
 

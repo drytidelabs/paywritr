@@ -10,7 +10,7 @@ Payments providers:
 - **Alby Hub** (default / recommended) — `PAYMENTS_PROVIDER=alby_hub`, `ALBY_HUB_URL=nostr+walletconnect://...`
 - **LNbits** (optional / legacy) — `PAYMENTS_PROVIDER=lnbits`, `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
 
-For provider details (including msats vs sats): see **[`docs/PAYMENTS.md`](docs/PAYMENTS.md)**.
+For provider details (including msats vs sats): see **[`docs/payments.md`](docs/payments.md)**.
 
 ## How it works (MVP)
 
