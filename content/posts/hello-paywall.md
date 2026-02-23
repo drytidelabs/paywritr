@@ -1,7 +1,7 @@
 ---
 type: post
-title: Hello, Paywritr
-slug: hello-paywritr
+title: Hello, paywall
+slug: hello-paywall
 published_date: "2026-02-13"
 draft: false
 price_sats: 50
