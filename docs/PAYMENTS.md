@@ -1,11 +1,16 @@
 # Payments providers
 
-Paywritr supports multiple payments providers.
+Paywritr supports two payments providers.
+
+## Provider selection
+
+Set one of:
+- `PAYMENTS_PROVIDER=alby_hub` (default)
+- `PAYMENTS_PROVIDER=lnbits`
 
 ## Alby Hub (default / recommended)
 
 Environment:
-- `PAYMENTS_PROVIDER=alby_hub`
 - `ALBY_HUB_URL=nostr+walletconnect://...`
 
 `ALBY_HUB_URL` must be a NIP-47 wallet connect string (scheme: `nostr+walletconnect://`). Treat it like an API key: **do not commit it**.
@@ -18,12 +23,22 @@ Paywritr posts are priced in **sats** (`price_sats` in frontmatter), and Paywrit
 
 `amount_msats = amount_sats * 1000`
 
-## LNbits (optional / legacy)
+## LNbits (optional)
 
 LNbits is supported for folks who prefer a hosted LNbits instance.
 
 Environment:
-- `PAYMENTS_PROVIDER=lnbits`
-- `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
+- `LNBITS_URL`
+- `LNBITS_INVOICE_KEY` (create invoices)
+- `LNBITS_READ_KEY` (check invoice status)
 
-LNbits invoice creation uses **satoshis** (sats).
+### Timeout behavior
+
+Paywritr applies a request timeout to LNbits calls so the server doesn’t hang indefinitely if LNbits becomes unresponsive.
+
+## Troubleshooting
+
+Common error categories you may see from `/api/invoice` or `/api/invoice/status`:
+- **"Payment provider is not configured"**: missing env vars for the selected provider
+- **"Payment service unavailable"**: relay/LNbits connectivity issue
+- **"Payment service is slow" / timeouts**: provider is reachable but not responding fast enough
