@@ -45,20 +45,20 @@ test('GET / returns 200 and themed output', async () => {
   assert.match(text, /<main\b/);
 });
 
-test('GET /p/free-note/ returns 200 and no paywall container', async () => {
-  const { res, text } = await httpGet('/p/free-note/');
+test('GET /p/hello-world/ returns 200 and no paywall container', async () => {
+  const { res, text } = await httpGet('/p/hello-world/');
   assert.equal(res.status, 200);
   assertThemeCssPresent(text);
   assert.ok(!text.includes('id="paywall"'));
-  assert.match(text, /<h1>\s*Free note\s*<\/h1>/i);
+  assert.match(text, /<h1>\s*Hello, world\s*<\/h1>/i);
 });
 
-test('GET /p/hello-paywall/ returns 200 and includes paywall container', async () => {
-  const { res, text } = await httpGet('/p/hello-paywall/');
+test('GET /p/hello-paywritr/ returns 200 and includes paywall container', async () => {
+  const { res, text } = await httpGet('/p/hello-paywritr/');
   assert.equal(res.status, 200);
   assertThemeCssPresent(text);
   assert.ok(text.includes('id="paywall"'));
-  assert.match(text, /data-slug="hello-paywall"/);
+  assert.match(text, /data-slug="hello-paywritr"/);
 });
 
 test('GET /about/ returns 200 (page route)', async () => {
@@ -91,10 +91,10 @@ test('fallback behavior: missing kind template still renders (no 500)', async ()
 
   await fs.rename(postTpl, bakTpl);
   try {
-    const { res, text } = await httpGet('/p/free-note/');
+    const { res, text } = await httpGet('/p/hello-world/');
     assert.equal(res.status, 200);
     assertThemeCssPresent(text);
-    assert.match(text, /<h1>\s*Free note\s*<\/h1>/i);
+    assert.match(text, /<h1>\s*Hello, world\s*<\/h1>/i);
   } finally {
     await fs.rename(bakTpl, postTpl);
   }

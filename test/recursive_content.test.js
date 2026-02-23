@@ -42,12 +42,12 @@ describe('Recursive content discovery (#91)', () => {
     await removeDirIfEmpty('pages');
   });
 
-  it('content in content/posts/ still works (backward compat)', async () => {
-    // existing files like free-note.md should work
+  it('content in content/posts/ is discovered', async () => {
+    // existing files like hello-world.md should work
     const { scanContent } = await import('../lib/content.js');
     const { posts } = await scanContent();
-    const freeNote = posts.find(p => p.slug === 'free-note');
-    assert.ok(freeNote, 'free-note should be discovered in content/posts/');
+    const helloWorld = posts.find(p => p.slug === 'hello-world');
+    assert.ok(helloWorld, 'hello-world should be discovered in content/posts/');
   });
 
   it('content in content/pages/ subdirectory is discovered', async () => {
@@ -79,11 +79,11 @@ describe('Recursive content discovery (#91)', () => {
   });
 
   it('duplicate slugs across directories produce validation error', async () => {
-    const relPath = 'pages/free-note-dup.md';
+    const relPath = 'pages/hello-world-dup.md';
     testFiles.push(relPath);
-    // free-note already exists in content/posts/
+    // hello-world already exists in content/posts/
     await writeContent(relPath,
-      'title: Duplicate\ntype: post\nslug: free-note\nprice_sats: 0',
+      'title: Duplicate\ntype: post\nslug: hello-world\nprice_sats: 0',
       'Duplicate slug'
     );
 
