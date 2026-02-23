@@ -23,9 +23,14 @@ Paywritr posts are priced in **sats** (`price_sats` in frontmatter), and Paywrit
 
 `amount_msats = amount_sats * 1000`
 
-## LNbits (optional)
+## LNbits (beta / optional)
 
 LNbits is supported for folks who prefer a hosted LNbits instance.
+
+**Status:** beta / advanced configuration.
+- Alby Hub remains the default/recommended provider.
+- Expect more operational variance (host reliability, latency, rate limits).
+- Monitor your LNbits instance (uptime + latency), since invoice create/status calls depend on it.
 
 Environment:
 - `LNBITS_URL`
