@@ -18,8 +18,8 @@ test('parsePaymentsProvider supports alby_hub', () => {
   assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'ALBY_HUB' }), 'alby_hub');
 });
 
-test('parsePaymentsProvider falls back to lnbits on unknown', () => {
-  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'something-else' }), 'lnbits');
+test('parsePaymentsProvider falls back to alby_hub on unknown', () => {
+  assert.equal(parsePaymentsProvider({ PAYMENTS_PROVIDER: 'something-else' }), 'alby_hub');
 });
 
 test('Alby Hub amounts are millisats (msats)', () => {
