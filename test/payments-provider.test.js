@@ -28,5 +28,21 @@ test('Alby Hub amounts are millisats (msats)', () => {
   assert.equal(msatsFromSats('50'), 50_000);
   // Ensure integer msats even if caller passes a float.
   assert.equal(msatsFromSats(1.2345), 1234);
-  assert.ok(Number.isNaN(msatsFromSats('nope')));
+});
+
+// #159 — msatsFromSats should throw on invalid amounts
+test('msatsFromSats throws on non-numeric input', () => {
+  assert.throws(() => msatsFromSats('nope'), { statusCode: 400 });
+});
+
+test('msatsFromSats throws on NaN', () => {
+  assert.throws(() => msatsFromSats(NaN), { statusCode: 400 });
+});
+
+test('msatsFromSats throws on zero', () => {
+  assert.throws(() => msatsFromSats(0), { statusCode: 400 });
+});
+
+test('msatsFromSats throws on negative', () => {
+  assert.throws(() => msatsFromSats(-1), { statusCode: 400 });
 });
