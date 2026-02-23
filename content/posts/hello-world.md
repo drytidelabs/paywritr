@@ -1,7 +1,7 @@
 ---
 type: post
-title: Free note
-slug: free-note
+title: Hello, world
+slug: hello-world
 published_date: "2026-02-12"
 draft: false
 price_sats: 0
