@@ -1,8 +1,0 @@
-# Global site metadata (non-secrets)
-# Themes/templates should use these values for branding + SEO.
-
-title: "Paywritr"
-tagline: "Minimal writing. Pay per post with Lightning."
-description: "Hyper-minimal Markdown blog with per-post Lightning paygating."
-
-timezone: "UTC"
