@@ -31,8 +31,9 @@ Before running Paywritr, you need a Lightning wallet connection.
 Start by getting the example configuration and content structure.
 
 ```bash
-git clone https://github.com/drytidelabs/paywritr.git
-cd paywritr
+git clone --depth 1 --filter=blob:none --sparse https://github.com/drytidelabs/paywritr.git my-blog \
+  && cd my-blog \
+  && git sparse-checkout set --no-cone content themes docker-compose.yml .env.example site.yml.example
 ```
 
 **2. Configure Site Metadata (`site.yml`)**
