@@ -104,6 +104,27 @@ Important behavior (anti-leak):
 - Unlock cookie name is derived from the slug: `unlock_<slug>`.
 - Changing the filename (slug) creates a **new** unlock scope. Readers who unlocked the old slug will not be unlocked for the new one.
 
+## Images and media
+
+Place images and other media in `content/assets/`. Files there are served publicly at `/assets/<filename>`.
+
+```
+content/
+  assets/
+    hero.jpg
+    diagram.png
+```
+
+Reference them in Markdown:
+
+```md
+![Alt text](/assets/hero.jpg)
+```
+
+This keeps media co-located with your content rather than mixed into the app's own `static/` folder (which is reserved for theme/UI assets).
+
+> **Note:** `content/assets/` is mounted read-only in the Docker container alongside the rest of `content/`, so no extra volume config is needed.
+
 ## Common gotchas
 
 - **Price units are sats** (`price_sats`).
