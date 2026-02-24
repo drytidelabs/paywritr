@@ -1,162 +1,144 @@
 # Paywritr
 
-Hyper-minimalist single-author flat-file blog with per-post Lightning paygating.
+**Minimal writing. Pay per post.**
 
-- No accounts
-- No database
-- Posts are `.md` files in `content/posts/*.md`
+A hyper-minimalist flat-file blog engine with built-in Lightning Network paywalls. Write in Markdown, set a price in sats, and get paid instantly via Alby Hub or LNbits.
 
-![Paywritr Paywall Preview](docs/assets/paywall-preview.jpg)
+![Paywritr Preview](docs/assets/paywall-preview.jpg)
 
-Payments providers:
-- **Alby Hub** (default / recommended) — `PAYMENTS_PROVIDER=alby_hub`, `ALBY_HUB_URL=nostr+walletconnect://...`
-- **LNbits** (optional / legacy) — `PAYMENTS_PROVIDER=lnbits`, `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
+### Features
 
-For provider details (including msats vs sats): see **[`docs/payments.md`](docs/payments.md)**.
+-   **Zero friction:** No accounts, no login. Readers pay once and unlock content on their device.
+-   **Flat-file:** No database. Just Markdown files.
+-   **Self-sovereign:** Money goes directly to your wallet (NWC/LNbits).
+-   **Themeable:** Simple HTML/CSS themes.
+-   **Lightweight:** Small Node.js server, runs anywhere (Docker/VPS/Raspberry Pi).
 
-## How it works (MVP)
+---
 
-- Add a `<!--more-->` marker to split teaser vs full.
-- If a post has `price_sats > 0`, readers see the teaser until they pay.
-- After the payments backend confirms the invoice is **paid**, the server sets an `HttpOnly` cookie `unlock_{slug}` that unlocks that post for `UNLOCK_DAYS` (default: 30).
+## 1. Prerequisites
 
-## Configure
+Before running Paywritr, you need a Lightning wallet connection.
 
-Paywritr is configured via:
-- `site.yml` (non-secret site metadata)
-- `.env` / environment variables (runtime + secrets)
+-   [**Alby Hub (Recommended):**](https://getalby.com/) Connects via Nostr Wallet Connect. You will need your Hub's **Connection Secret** (NWC URL).
+-   [**LNbits (Advanced):**](https://lnbits.com) Connects to an LNbits instance. You will need your **Invoice/Read Keys** and instance URL.
 
-1) Create `site.yml`:
+---
 
+## 2. Setup & Configuration
+
+**1. Get the files**
+Start by getting the example configuration and content structure.
+
+```bash
+git clone https://github.com/drytidelabs/paywritr.git
+cd paywritr
+```
+
+**2. Configure Site Metadata (`site.yml`)**
+Public info about your blog (title, description, timezone).
 ```bash
 cp site.yml.example site.yml
+# Edit site.yml to match your brand
 ```
 
-Keys in `site.yml`:
-- `title`, `tagline`, `description`, `timezone`
-
-2) Create `.env`:
-
+**3. Configure Secrets (`.env`)**
+Private keys and connection strings.
 ```bash
 cp .env.example .env
+# Edit .env: Set APP_SECRET and your Payment Provider details
 ```
 
-Set at minimum:
-- `APP_SECRET` (long random string)
-
-Then pick a provider:
-- **Alby Hub (default):** `PAYMENTS_PROVIDER=alby_hub` + `ALBY_HUB_URL`
-- **LNbits (optional):** `PAYMENTS_PROVIDER=lnbits` + `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
-
-See `docs/configuration.md` for the complete config reference.
-
-## Run locally
-
-```bash
-npm install
-
-# Alby Hub (default / recommended)
-PAYMENTS_PROVIDER=alby_hub \
-APP_SECRET=dev-secret \
-ALBY_HUB_URL='nostr+walletconnect://...' \
-npm run dev
-
-# LNbits (optional)
-PAYMENTS_PROVIDER=lnbits \
-APP_SECRET=dev-secret \
-LNBITS_URL=https://your-lnbits-host \
-LNBITS_INVOICE_KEY=... \
-LNBITS_READ_KEY=... \
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-## Deploy / Run with Docker Compose
-
-Recommended for local deploys and servers.
-
-1) Create a local `.env` (never commit it):
-
-```bash
-cp .env.example .env
-```
-
-2) Edit `.env` and set at minimum:
-- `APP_SECRET`
-- `PAYMENTS_PROVIDER=alby_hub`
-- `ALBY_HUB_URL`
-
-3) Run:
-
-```bash
-docker compose up --build
-```
-
-Open <http://localhost:3000>.
-
-## Writing content
-
-Content lives in `content/posts/*.md`.
-
-### Templates
-
-Copy a template:
-- `templates/post.free.md`
-- `templates/post.paywalled.md`
-- `templates/page.md`
-
-Filename can be anything; the canonical URL slug is in frontmatter.
-
-### Frontmatter (v0.1)
-
-Minimal canonical schema:
-- `type` (`post` | `page`)
-- `title`
-- `slug`
-- `published_date`
-- `draft` (`true` = not published)
-- `price_sats` (`type: page` must be `0`)
-- `summary` (optional)
-- `aliases` (optional)
-- `topics` (optional)
-
-More details + examples: **[`docs/authoring.md`](docs/authoring.md)**.
-
-Example:
-
-```md
----
-type: post
-title: My post
-slug: my-post
-published_date: "2026-02-13"
-price_sats: 123
-summary: Optional short description for the homepage.
 ---
 
-This is the teaser.
+## 3. How to Run
+
+### Option A: Docker Compose (Recommended)
+
+Ideal for production. Paywritr provides a default `docker-compose.yml`.
+
+**1. Review Volumes**
+Open `docker-compose.yml` and check the `volumes:` section. By default, it expects your content and config to be in the current directory:
+
+```yaml
+volumes:
+  - ./content:/app/content       # Where your Markdown posts live
+  - ./site.yml:/app/site.yml:ro  # Your site config
+```
+*If you keep your content elsewhere (e.g. `/var/data/blog`), update the left side of these paths.*
+
+**2. Run**
+```bash
+docker compose up -d
+```
+This pulls the official image (`ghcr.io/drytidelabs/paywritr:latest`) and starts the server on port 3000.
+
+### Option B: Docker CLI
+
+Run the container directly, manually mounting your config files:
+
+```bash
+docker run -d -p 3000:3000 \
+  --name paywritr \
+  --env-file .env \
+  -v $(pwd)/content:/app/content \
+  -v $(pwd)/site.yml:/app/site.yml:ro \
+  ghcr.io/drytidelabs/paywritr:latest
+```
+
+### Option C: Local Node.js
+
+For development or bare-metal hosting. Requires Node.js 20+.
+
+```bash
+npm ci
+npm start
+```
+Visit `http://localhost:3000`.
+
+---
+
+## 4. Content Creation
+
+Posts live in your local `content/posts/` folder (or wherever you pointed the Docker volume).
+
+**Example Post:**
+```yaml
+---
+title: My Premium Story
+slug: my-story
+published_date: "2026-02-24"
+price_sats: 500
+summary: A teaser for the homepage.
+---
+
+This is the free teaser text shown to everyone.
 
 <!--more-->
 
-This is the full post.
+## The Paid Section
+Everything below the "more" marker is hidden behind the paywall until purchased.
 ```
 
-`price_sats: 0` makes a post free.
+**Images:**
+Place images in `content/assets/` and reference them like this:
+```markdown
+![My Chart](/assets/chart.png)
+```
 
-More details: **[`docs/authoring.md`](docs/authoring.md)**.
+---
 
-## Docs
+## 5. Documentation
 
-- Authoring: `docs/authoring.md`
-- Configuration: `docs/configuration.md`
-- Deploy: `docs/deploy.md`
+Detailed guides are available in `docs/`:
 
-## Deployment notes
+-   [**Configuration**](docs/configuration.md) - Full list of options and `site.yml` keys.
+-   [**Payments**](docs/payments.md) - Deep dive on Alby/LNbits setup.
+-   [**Deploy**](docs/deploy.md) - Production guides (HTTPS, Reverse Proxy).
+-   [**Theming**](docs/theme_authoring.md) - How to create custom themes.
 
-- Put this behind HTTPS (Caddy/Nginx). Set `COOKIE_SECURE=true` so unlock cookies are `Secure`.
-- This MVP is intentionally tiny: no admin UI, no DB, no persistent invoice tracking.
+---
 
 ## License
 
-MIT
+MIT © [Drytide Labs](https://github.com/drytidelabs)
