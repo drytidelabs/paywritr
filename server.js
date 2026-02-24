@@ -113,6 +113,9 @@ app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
 app.use('/static', express.static(path.join(process.cwd(), 'static'), { fallthrough: false }));
 app.use('/themes', express.static(THEMES_DIR, { fallthrough: false }));
+// Content assets: files placed in content/assets/ are served at /assets/<filename>.
+// This keeps media co-located with content rather than buried in the app's static folder.
+app.use('/assets', express.static(path.join(process.cwd(), 'content', 'assets'), { fallthrough: false }));
 
 function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -954,7 +957,7 @@ app.get(
   asyncHandler(async (req, res) => {
     const slug = req.params.slug;
     // Avoid route collisions with known prefixes.
-    const reserved = new Set(['p', 'post', 'api', 'static', 'healthz', 'readyz']);
+    const reserved = new Set(['p', 'post', 'api', 'static', 'assets', 'healthz', 'readyz']);
     if (reserved.has(String(slug || '').toLowerCase())) {
       await renderStatusPage({
         req,
