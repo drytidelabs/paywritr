@@ -6,6 +6,8 @@ Hyper-minimalist single-author flat-file blog with per-post Lightning paygating.
 - No database
 - Posts are `.md` files in `content/posts/*.md`
 
+![Paywritr Paywall Preview](docs/assets/paywall-preview.jpg)
+
 Payments providers:
 - **Alby Hub** (default / recommended) — `PAYMENTS_PROVIDER=alby_hub`, `ALBY_HUB_URL=nostr+walletconnect://...`
 - **LNbits** (optional / legacy) — `PAYMENTS_PROVIDER=lnbits`, `LNBITS_URL`, `LNBITS_INVOICE_KEY`, `LNBITS_READ_KEY`
