@@ -1,6 +1,9 @@
 services:
   paywritr:
-    build: .
+    # Use the official image by default.
+    image: ghcr.io/drytidelabs/paywritr:latest
+    # To build locally instead, uncomment 'build' and comment out 'image'.
+    # build: .
     ports:
       - "3000:3000"
     restart: unless-stopped

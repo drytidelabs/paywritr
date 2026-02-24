@@ -65,17 +65,17 @@ cp .env.example .env
 ### 3) Start
 
 ```bash
-docker compose up --build -d
+docker compose up -d
 ```
 
 ### 4) Update
 
 ```bash
-# pull latest
-git pull
+# pull latest image
+docker compose pull
 
-# rebuild + restart
-docker compose up --build -d
+# restart container
+docker compose up -d
 ```
 
 ## Volume mounts
